@@ -834,7 +834,12 @@ input[type="number"] {
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(26rem, 29rem) minmax(0, 1fr) minmax(26rem, 29rem) minmax(14rem, 16rem);
+  grid-template-areas: "workflow preview control output";
+  grid-template-columns:
+    minmax(24rem, clamp(24rem, 25vw, 31rem))
+    minmax(0, 1fr)
+    minmax(21rem, clamp(21rem, 23vw, 29rem))
+    minmax(11rem, clamp(11rem, 12vw, 16rem));
   overflow: hidden;
 }
 
@@ -856,14 +861,15 @@ input[type="number"] {
 }
 
 .retouch-workflow-panel {
+  grid-area: workflow;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .retouch-left-body {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(10.5rem, 0.86fr) minmax(0, 1.14fr);
-  gap: 0.62rem;
+  grid-template-columns: 4.9rem minmax(0, 1fr);
+  gap: 0.72rem;
   flex: 1 1 auto;
   margin-top: 0.62rem;
   overflow: hidden;
@@ -878,10 +884,33 @@ input[type="number"] {
   overflow: hidden;
 }
 
+.retouch-primary-menu {
+  min-height: 0;
+}
+
+.retouch-secondary-menu {
+  min-height: 0;
+}
+
 .retouch-primary-title,
 .retouch-secondary-head {
-  display: flex;
   align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.24rem;
+  margin-bottom: 0.68rem;
+}
+
+.retouch-secondary-head div {
+  min-width: 0;
+}
+
+.retouch-secondary-head small {
+  text-align: left;
+}
+
+.retouch-primary-title {
+  display: flex;
   justify-content: space-between;
   gap: 0.55rem;
   margin-bottom: 0.52rem;
@@ -890,8 +919,23 @@ input[type="number"] {
 .retouch-primary-title span,
 .retouch-secondary-head span {
   color: #f4f4f5;
-  font-size: 1.08rem;
+  font-size: 1.02rem;
   font-weight: 820;
+}
+
+.retouch-primary-title {
+  align-items: center;
+  flex-direction: column;
+  gap: 0.16rem;
+  margin-bottom: 0.44rem;
+  text-align: center;
+}
+
+.retouch-primary-title strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .retouch-primary-title strong,
@@ -903,28 +947,30 @@ input[type="number"] {
 
 .retouch-secondary-head div {
   display: grid;
-  gap: 0.1rem;
+  gap: 0.16rem;
 }
 
 .retouch-secondary-head strong {
   color: #67e8f9;
-  font-size: 1.18rem;
+  font-size: 1.42rem;
   font-weight: 840;
+  line-height: 1.18;
 }
 
 .retouch-secondary-head small {
-  max-width: 9rem;
-  overflow: hidden;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.34;
 }
 
 .retouch-output-panel {
+  grid-area: output;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .retouch-control-panel {
+  grid-area: control;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -939,6 +985,7 @@ input[type="number"] {
 }
 
 .retouch-preview-panel {
+  grid-area: preview;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -1023,10 +1070,10 @@ input[type="number"] {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 0.46rem;
+  gap: 0.56rem;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-right: 0.12rem;
+  padding-right: 0.18rem;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(34, 211, 238, 0.36) rgba(255, 255, 255, 0.06);
@@ -1053,25 +1100,41 @@ input[type="number"] {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-right: 0.12rem;
+  padding: 0 0.08rem 0 0;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(34, 211, 238, 0.36) rgba(255, 255, 255, 0.06);
 }
 
+.retouch-category-grid::-webkit-scrollbar {
+  width: 0.36rem;
+}
+
+.retouch-category-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 999px;
+}
+
+.retouch-category-grid::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.34);
+  border-radius: 999px;
+}
+
 .retouch-category-button {
   position: relative;
   display: grid;
-  grid-template-columns: 2.3rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.52rem;
-  min-height: 4.4rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  min-height: 4.15rem;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   color: #d4d4d8;
-  padding: 0.68rem 0.72rem;
-  text-align: left;
+  padding: 0.52rem 0.2rem;
+  text-align: center;
 }
 
 .retouch-category-button:hover,
@@ -1100,26 +1163,28 @@ input[type="number"] {
 }
 
 .retouch-category-button svg {
-  width: 1.36rem;
-  height: 1.36rem;
+  width: 1.24rem;
+  height: 1.24rem;
 }
 
 .retouch-category-copy {
   min-width: 0;
-  display: grid;
-  gap: 0.18rem;
+  display: flex;
+  align-items: center;
 }
 
 .retouch-category-title {
   max-width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.38rem;
+  justify-content: center;
+  gap: 0.22rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 1.08rem;
-  font-weight: 760;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.12;
 }
 
 .retouch-category-name {
@@ -1133,51 +1198,45 @@ input[type="number"] {
   border-radius: 999px;
   background: #fbbf24;
   color: #111827;
-  padding: 0.16rem 0.4rem;
-  font-size: 0.62rem;
+  padding: 0.12rem 0.24rem;
+  font-size: 0.54rem;
   font-weight: 900;
   line-height: 1;
 }
 
 .retouch-category-summary {
-  min-width: 0;
-  overflow: hidden;
-  color: #a1a1aa;
-  font-size: 0.76rem;
-  font-weight: 680;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .retouch-category-count {
   position: absolute;
-  right: 0.5rem;
-  top: 0.45rem;
+  right: 0.28rem;
+  top: 0.26rem;
   display: grid;
   place-items: center;
-  min-width: 1.08rem;
-  height: 1.08rem;
+  min-width: 1.18rem;
+  height: 1.18rem;
   border-radius: 999px;
   background: #22d3ee;
   color: #071113;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   font-weight: 860;
 }
 
 .retouch-option-panel {
   display: grid;
-  gap: 0.38rem;
+  gap: 0.52rem;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
-  padding: 0.5rem;
+  padding: 0.58rem;
 }
 
 .retouch-option-row {
   display: grid;
-  grid-template-columns: 3.1rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.42rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.4rem;
 }
 
 .retouch-option-row > span {
@@ -1190,18 +1249,18 @@ input[type="number"] {
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.2rem;
+  gap: 0.32rem;
 }
 
 .retouch-option-row button {
   position: relative;
-  min-height: 1.72rem;
+  min-height: 2.08rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.045);
   color: #d4d4d8;
-  padding: 0 0.46rem;
-  font-size: 0.86rem;
+  padding: 0 0.62rem;
+  font-size: 0.94rem;
   font-weight: 740;
 }
 
@@ -1216,22 +1275,22 @@ input[type="number"] {
 .retouch-option-row button small {
   display: block;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .retouch-option-row button strong {
   color: inherit;
-  font-size: 0.86rem;
+  font-size: 0.94rem;
   font-weight: 800;
+  line-height: 1.18;
 }
 
 .retouch-option-row button small {
   margin-top: 0.08rem;
   color: #a1a1aa;
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .retouch-option-row button.is-active small {
@@ -1266,14 +1325,14 @@ input[type="number"] {
 
 .retouch-graduate-background-panel .retouch-option-row > div {
   display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 0.26rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.38rem;
 }
 
 .retouch-graduate-background-panel .retouch-option-row button {
-  min-height: 2.62rem;
+  min-height: 3.2rem;
   text-align: left;
-  padding: 0.34rem 1.6rem 0.34rem 0.52rem;
+  padding: 0.54rem 1.7rem 0.54rem 0.62rem;
 }
 
 .retouch-background-upload {
@@ -1314,9 +1373,7 @@ input[type="number"] {
 
 .retouch-background-upload strong,
 .retouch-background-upload small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .retouch-background-upload strong {
@@ -1433,14 +1490,20 @@ input[type="number"] {
   font-weight: 760;
 }
 
+.retouch-template-card strong {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.18;
+}
+
 .retouch-template-card small {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: #a1a1aa;
   font-size: 0.86rem;
   font-weight: 620;
+  line-height: 1.32;
+  white-space: normal;
 }
 
 .retouch-film-scene-panel {
@@ -1534,21 +1597,17 @@ input[type="number"] {
 }
 
 .retouch-film-scene-upload strong {
-  overflow: hidden;
   color: inherit;
   font-size: 0.96rem;
   font-weight: 820;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.18;
 }
 
 .retouch-film-scene-upload small {
-  overflow: hidden;
   color: #fde68a;
   font-size: 0.74rem;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
 }
 
 .retouch-film-scene-grid {
@@ -1749,6 +1808,32 @@ input[type="number"] {
   padding: 0.45rem;
 }
 
+.retouch-preview-frame.is-dragging {
+  border-color: rgba(34, 211, 238, 0.68);
+  background:
+    linear-gradient(rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0.08)),
+    #050506;
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.22), 0 0 34px rgba(34, 211, 238, 0.16);
+}
+
+.retouch-preview-frame.is-dragging::after {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(34, 211, 238, 0.46);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.9);
+  color: #ecfeff;
+  content: '松开后上传为参考图';
+  padding: 0.58rem 0.9rem;
+  font-size: 0.96rem;
+  font-weight: 820;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .retouch-preview-stage {
   position: relative;
   width: 100%;
@@ -1904,7 +1989,16 @@ input[type="number"] {
   border: 1px dashed rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.035);
+  color: #a1a1aa;
+  padding: 1rem;
   text-align: center;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.retouch-preview-empty:hover {
+  border-color: rgba(34, 211, 238, 0.48);
+  background: rgba(34, 211, 238, 0.08);
+  color: #67e8f9;
 }
 
 .retouch-preview-empty strong {
@@ -1918,6 +2012,35 @@ input[type="number"] {
   color: #a1a1aa;
   font-size: 0.88rem;
   font-weight: 680;
+}
+
+.retouch-preview-upload-cta,
+.retouch-preview-upload-float {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.42);
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.12);
+  color: #a5f3fc;
+  padding: 0.42rem 0.72rem;
+  font-size: 0.9rem;
+  font-weight: 820;
+}
+
+.retouch-preview-upload-float {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 5;
+  background: rgba(8, 47, 73, 0.76);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+}
+
+.retouch-preview-upload-float:hover {
+  border-color: rgba(34, 211, 238, 0.7);
+  background: rgba(34, 211, 238, 0.18);
+  color: #ecfeff;
 }
 
 .retouch-result-thumb {
@@ -2599,13 +2722,13 @@ body:has([data-home-main]) .toast-enter {
   max-width: calc(100vw - 2rem);
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 1680px) {
   .retouch-studio-shell {
     font-size: 17px;
   }
 
   .retouch-studio-body {
-    grid-template-columns: minmax(27rem, 30rem) minmax(0, 1fr) minmax(27rem, 30rem) minmax(15rem, 17rem);
+    grid-template-columns: minmax(25rem, 30rem) minmax(0, 1fr) minmax(25rem, 30rem) minmax(14rem, 17rem);
   }
 
   .retouch-control-panel,
@@ -2624,13 +2747,47 @@ body:has([data-home-main]) .toast-enter {
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1440px) {
   .retouch-studio-body {
-    grid-template-columns: minmax(0, 1fr) minmax(23rem, 25rem) 12.5rem;
+    grid-template-areas:
+      "workflow preview control"
+      "workflow preview output";
+    grid-template-columns: minmax(18.5rem, 21rem) minmax(0, 1fr) minmax(20rem, 23rem);
+    grid-template-rows: minmax(0, 1fr) minmax(9rem, 13rem);
   }
 
-  .retouch-workflow-panel {
+  .retouch-api-card {
     display: none;
+  }
+
+  .retouch-output-panel {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .retouch-output-panel .retouch-current-brief,
+  .retouch-output-panel .retouch-task-summary,
+  .retouch-output-panel > .retouch-section-heading:nth-of-type(n + 2),
+  .retouch-output-panel > .retouch-result-strip {
+    display: none;
+  }
+
+  .retouch-history-list {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.12rem;
+  }
+
+  .retouch-history-card {
+    min-width: 11rem;
+  }
+
+  .retouch-film-scene-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .retouch-film-scene-guide span {
+    overflow: hidden;
   }
 
   .retouch-zoom-control {
@@ -2642,9 +2799,51 @@ body:has([data-home-main]) .toast-enter {
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1180px) {
   .retouch-studio-body {
-    grid-template-columns: minmax(0, 1fr) minmax(21rem, 23rem) 11.5rem;
+    grid-template-areas:
+      "workflow preview"
+      "control output";
+    grid-template-columns: minmax(19rem, 23rem) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(18rem, 24rem);
+  }
+
+  .retouch-control-panel {
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .retouch-output-panel {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .retouch-side-submit {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .retouch-prompt-field textarea {
+    min-height: 8rem;
+  }
+
+  .retouch-submit-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .retouch-segment-group,
+  .retouch-segment-group[aria-label="输出数量"],
+  .retouch-segment-group[aria-label="生成模式"],
+  .retouch-segment-group[aria-label="输出尺寸"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .retouch-segment-group span {
+    grid-column: 1 / -1;
+    padding-left: 0;
+  }
+
+  .retouch-submit-button {
+    grid-column: 1 / -1;
   }
 
   .retouch-preview-actions {
@@ -2667,7 +2866,40 @@ body:has([data-home-main]) .toast-enter {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
+  html:has([data-home-main]),
+  body:has([data-home-main]),
+  #root:has([data-home-main]) {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body:has([data-home-main]) {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .retouch-app-main {
+    height: auto;
+    min-height: calc(100svh - 3.5rem - var(--safe-area-top));
+    overflow: visible;
+  }
+
+  .retouch-app-grid {
+    height: auto;
+    overflow: visible;
+  }
+
+  .retouch-app-grid .retouch-workspace {
+    height: auto;
+  }
+
+  .retouch-studio-shell {
+    min-height: calc(100svh - 3.5rem - var(--safe-area-top));
+    overflow: visible;
+  }
+
   .retouch-studio-header {
     align-items: stretch;
     min-height: 4.8rem;
@@ -2675,12 +2907,91 @@ body:has([data-home-main]) .toast-enter {
     gap: 0.55rem;
   }
 
-  .retouch-studio-body {
-    grid-template-columns: minmax(0, 1fr);
+  .retouch-studio-status-row {
+    gap: 0.34rem;
   }
 
-  .retouch-control-panel {
-    display: none;
+  .retouch-studio-status-row span {
+    max-width: 10rem;
+  }
+
+  .retouch-studio-body {
+    height: auto;
+    grid-template-areas:
+      "preview"
+      "workflow"
+      "control"
+      "output";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(22rem, 42vh) auto auto auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
+
+  .retouch-workflow-panel,
+  .retouch-control-panel,
+  .retouch-output-panel {
+    min-height: auto;
+    overflow: visible;
+    border-left: 0;
+    border-right: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .retouch-left-body {
+    min-height: auto;
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+  }
+
+  .retouch-primary-menu,
+  .retouch-secondary-menu {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .retouch-category-grid {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.18rem;
+  }
+
+  .retouch-category-button {
+    min-width: 10.5rem;
+  }
+
+  .retouch-template-list {
+    flex: 0 0 auto;
+    min-height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .retouch-film-scene-panel {
+    min-height: auto;
+  }
+
+  .retouch-group-tabs,
+  .retouch-film-scene-grid,
+  .retouch-template-chip-grid {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.18rem;
+  }
+
+  .retouch-film-scene-card {
+    min-width: 10.5rem;
+  }
+
+  .retouch-template-card {
+    min-width: 10rem;
+  }
+
+  .retouch-preview-panel {
+    min-height: 22rem;
   }
 
   .retouch-submit-shell,
@@ -2720,13 +3031,16 @@ body:has([data-home-main]) .toast-enter {
     grid-column: 1 / -1;
     min-height: 2.45rem;
   }
+
+  .retouch-output-panel .retouch-current-brief,
+  .retouch-output-panel .retouch-task-summary,
+  .retouch-output-panel > .retouch-section-heading:nth-of-type(n + 2),
+  .retouch-output-panel > .retouch-result-strip {
+    display: grid;
+  }
 }
 
 @media (max-width: 640px) {
-  .retouch-app-main {
-    height: calc(100vh - 3.5rem - var(--safe-area-top));
-  }
-
   .retouch-app-grid {
     gap: 0;
     padding-top: 0;
@@ -2734,15 +3048,82 @@ body:has([data-home-main]) .toast-enter {
 
   .retouch-workspace {
     margin-top: 0;
+    height: auto;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .retouch-studio-shell {
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .retouch-studio-header {
+    padding: 0.72rem 0.78rem;
+  }
+
+  .retouch-studio-title h2 {
+    font-size: 1.08rem;
+  }
+
+  .retouch-studio-hint {
+    font-size: 0.82rem;
+  }
+
+  .retouch-studio-body {
+    grid-template-rows: minmax(20rem, 44svh) auto auto auto;
   }
 
   .retouch-preview-panel {
     padding: 0.55rem;
+    min-height: 20rem;
   }
 
   .retouch-preview-stage {
     width: 100%;
     height: 100%;
+  }
+
+  .retouch-preview-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .retouch-preview-actions {
+    justify-content: stretch;
+  }
+
+  .retouch-zoom-control {
+    grid-template-columns: auto minmax(0, 1fr) 3rem;
+    width: 100%;
+  }
+
+  .retouch-tool-button {
+    flex: 1 1 46%;
+    min-height: 2.35rem;
+    font-size: 0.86rem;
+  }
+
+  .retouch-preview-empty {
+    min-width: min(20rem, 88%);
+    min-height: 8.5rem;
+    gap: 0.28rem;
+    padding: 0.78rem;
+  }
+
+  .retouch-preview-empty strong {
+    font-size: 1rem;
+  }
+
+  .retouch-preview-empty span {
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .retouch-preview-upload-cta {
+    padding: 0.34rem 0.62rem;
+    font-size: 0.82rem;
   }
 
   .retouch-submit-dock {
@@ -2761,21 +3142,38 @@ body:has([data-home-main]) .toast-enter {
     align-items: center;
     flex-direction: row;
     justify-content: flex-start;
+    overflow: hidden;
   }
 
   .retouch-upload-button {
-    min-width: 8rem;
+    min-width: 0;
+    width: 100%;
   }
 
   .retouch-prompt-field textarea {
-    min-height: 100%;
+    min-height: 9.5rem;
     max-height: none;
+  }
+
+  .retouch-submit-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .retouch-segment-group,
+  .retouch-segment-group[aria-label="输出数量"],
+  .retouch-segment-group[aria-label="生成模式"],
+  .retouch-segment-group[aria-label="输出尺寸"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .retouch-segment-group > button,
   .retouch-segment-group > button:first-of-type,
   .retouch-segment-group > button:last-of-type {
     border-radius: 7px;
+  }
+
+  .retouch-output-panel > .retouch-result-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .retouch-submit-button {

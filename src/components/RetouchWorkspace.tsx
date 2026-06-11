@@ -97,17 +97,17 @@ const filmSceneAssets: FilmSceneAsset[] = Array.from({ length: 10 }, (_, index) 
 })
 const defaultFilmSceneId: FilmSceneId | null = filmSceneAssets[0]?.id ?? null
 
-const retouchCategories: Array<{ id: RetouchCategoryId; title: string; summary: string; icon: typeof PhotoIcon; badge?: string }> = [
-  { id: 'graduateScene', title: '毕业仿拍', summary: '毕业照 / 名场面 / 群像', icon: PhotoIcon, badge: '新功能' },
-  { id: 'aiColor', title: 'AI色彩', summary: 'AI追色 / 样片 / 套图', icon: RefreshIcon },
-  { id: 'tone', title: '调色', summary: '白平衡 / 全局 / 黑白场', icon: SettingsIcon },
-  { id: 'local', title: '局部', summary: '面部 / 背景 / 区域色彩', icon: EditIcon },
-  { id: 'portrait', title: '人像', summary: '丰体 / 瘦身 / 皮肤', icon: PhotoIcon },
-  { id: 'image', title: '图像', summary: '消除 / 背景 / 产品', icon: WrenchIcon },
-  { id: 'clothes', title: '衣物', summary: '褶皱 / 污渍 / 领口', icon: EditIcon },
-  { id: 'postColor', title: '后调色', summary: '质感肌 / 婚纱 / 儿童', icon: HistoryIcon },
-  { id: 'crop', title: '裁剪', summary: '旋转 / 透视 / 补边', icon: SettingsIcon },
-  { id: 'aiNative', title: 'AI Native', summary: '改稿 / 审片 / 一致性', icon: RefreshIcon },
+const retouchCategories: Array<{ id: RetouchCategoryId; title: string; shortTitle: string; summary: string; icon: typeof PhotoIcon; badge?: string }> = [
+  { id: 'graduateScene', title: '毕业仿拍', shortTitle: '毕业', summary: '毕业照 / 名场面 / 群像', icon: PhotoIcon, badge: '新' },
+  { id: 'aiColor', title: 'AI色彩', shortTitle: '色彩', summary: 'AI追色 / 样片 / 套图', icon: RefreshIcon },
+  { id: 'tone', title: '调色', shortTitle: '调色', summary: '白平衡 / 全局 / 黑白场', icon: SettingsIcon },
+  { id: 'local', title: '局部', shortTitle: '局部', summary: '面部 / 背景 / 区域色彩', icon: EditIcon },
+  { id: 'portrait', title: '人像', shortTitle: '人像', summary: '丰体 / 瘦身 / 皮肤', icon: PhotoIcon },
+  { id: 'image', title: '图像', shortTitle: '图像', summary: '消除 / 背景 / 产品', icon: WrenchIcon },
+  { id: 'clothes', title: '衣物', shortTitle: '衣物', summary: '褶皱 / 污渍 / 领口', icon: EditIcon },
+  { id: 'postColor', title: '后调色', shortTitle: '后期', summary: '质感肌 / 婚纱 / 儿童', icon: HistoryIcon },
+  { id: 'crop', title: '裁剪', shortTitle: '裁剪', summary: '旋转 / 透视 / 补边', icon: SettingsIcon },
+  { id: 'aiNative', title: 'AI Native', shortTitle: 'AI', summary: '改稿 / 审片 / 一致性', icon: RefreshIcon },
 ]
 
 const categoryTemplateAliases: Partial<Record<RetouchCategoryId, RetouchCategoryId[]>> = {
@@ -999,9 +999,11 @@ function HistoryThumb({ task }: { task: { outputImages: string[]; inputImageIds:
 function RetouchPreviewEmpty({
   hasHistorySelection,
   generationMode,
+  onUpload,
 }: {
   hasHistorySelection: boolean
   generationMode: RetouchGenerationMode
+  onUpload: () => void
 }) {
   const title = hasHistorySelection
     ? '历史记录缺少可预览图片'
@@ -1015,11 +1017,14 @@ function RetouchPreviewEmpty({
       : '清空参考图后不会继续显示上一次修图结果。'
 
   return (
-    <div className="retouch-preview-empty">
+    <button type="button" className="retouch-preview-empty" onClick={onUpload}>
       <PhotoIcon className="h-6 w-6" />
       <strong>{title}</strong>
       <span>{description}</span>
-    </div>
+      <span className="retouch-preview-upload-cta">
+        {generationMode === 'text' ? '上传参考图并修图' : '上传参考图'}
+      </span>
+    </button>
   )
 }
 
@@ -1803,7 +1808,7 @@ export default function RetouchWorkspace() {
             <div className="retouch-left-body">
               <nav className="retouch-primary-menu" aria-label="一级功能菜单">
                 <div className="retouch-primary-title">
-                  <span>一级菜单</span>
+                  <span>工具</span>
                   <strong>{selectedConfigCount ? `${selectedConfigCount} 项` : '未选择'}</strong>
                 </div>
                 <div className="retouch-category-grid">
@@ -1833,7 +1838,7 @@ export default function RetouchWorkspace() {
                         <Icon className="h-4 w-4" />
                         <span className="retouch-category-copy">
                           <span className="retouch-category-title">
-                            <span className="retouch-category-name">{category.title}</span>
+                            <span className="retouch-category-name">{category.shortTitle}</span>
                             {category.badge && <span className="retouch-category-badge">{category.badge}</span>}
                           </span>
                           <small className="retouch-category-summary">{category.summary}</small>
@@ -1848,7 +1853,7 @@ export default function RetouchWorkspace() {
               <div className="retouch-secondary-menu">
                 <div className="retouch-secondary-head">
                   <div>
-                    <span>二级功能</span>
+                    <span>当前功能</span>
                     <strong>{selectedCategory.title}</strong>
                   </div>
                   <small>{selectedCategory.summary}</small>
@@ -2077,7 +2082,19 @@ export default function RetouchWorkspace() {
               </div>
             </div>
 
-            <div className="retouch-preview-frame">
+            <div
+              className={`retouch-preview-frame ${isDraggingUpload ? 'is-dragging' : ''}`}
+              onDragOver={(event) => {
+                event.preventDefault()
+                setIsDraggingUpload(true)
+              }}
+              onDragLeave={() => setIsDraggingUpload(false)}
+              onDrop={(event) => {
+                event.preventDefault()
+                setIsDraggingUpload(false)
+                void handleFiles(event.dataTransfer.files)
+              }}
+            >
               <div ref={previewStageRef} className={`retouch-preview-stage ${compareEnabled && canCompare ? 'is-comparing' : ''}`}>
                 {compareEnabled && canCompare && outputImageSrc && beforeImageSrc ? (
                   <div className="retouch-compare-plane">
@@ -2161,12 +2178,25 @@ export default function RetouchWorkspace() {
                     />
                   </div>
                 ) : (
-                  <RetouchPreviewEmpty hasHistorySelection={previewEmptyHasHistorySelection} generationMode={generationMode} />
+                  <RetouchPreviewEmpty
+                    hasHistorySelection={previewEmptyHasHistorySelection}
+                    generationMode={generationMode}
+                    onUpload={() => fileInputRef.current?.click()}
+                  />
                 )}
               </div>
               {currentStatusTask?.status === 'running' && <div className="retouch-running-badge">生成中</div>}
               {visibleTask?.status === 'error' && <div className="retouch-error-badge">生成失败</div>}
               {hasPreviewImage && <div className="retouch-fit-badge">{previewZoom > 1 ? `${Math.round(previewZoom * 100)}%` : '完整显示'}</div>}
+              {hasPreviewImage && (
+                <button
+                  type="button"
+                  className="retouch-preview-upload-float"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  上传参考图
+                </button>
+              )}
             </div>
           </main>
 
