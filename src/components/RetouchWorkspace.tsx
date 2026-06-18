@@ -908,17 +908,6 @@ ${scene.prompt}
 执行设置：${background.prompt} 最终结果要像真实毕业照团队仿拍影视名场面，人物身份和服装必须一眼可确认没有改变。`
 }
 
-function isGraduateSceneAutoPrompt(value: string) {
-  const text = value.trim()
-  if (!text) return true
-  return (
-    text.startsWith('把用户上传的毕业照改造成「') &&
-    text.includes('式影视作品名场面仿拍') &&
-    text.includes('必须严格保留：') &&
-    text.includes('最终结果要像真实毕业照团队仿拍影视名场面')
-  )
-}
-
 function mergeTemplateParams(templates: RetouchTemplate[]) {
   return templates.reduce<Partial<TaskParams>>((merged, template) => ({ ...merged, ...template.params }), {})
 }
@@ -1136,6 +1125,8 @@ export default function RetouchWorkspace() {
   const [textSessionStartedAt, setTextSessionStartedAt] = useState(0)
   const [customFilmScenes, setCustomFilmScenes] = useState<FilmSceneAsset[]>([])
   const inputSignatureRef = useRef<string | null>(null)
+  const generatedPromptRef = useRef<string | null>(null)
+  const promptManuallyEditedRef = useRef(false)
   const activeProfile = useMemo(() => getActiveApiProfile(settings), [settings])
   const apiIssue = validateApiProfile(activeProfile)
   const retouchTasks = useMemo(
@@ -1262,6 +1253,18 @@ export default function RetouchWorkspace() {
   const getGroupSelectionCount = (templates: RetouchTemplate[]) => (
     templates.filter((template) => selectedTemplateIds.includes(template.id)).length
   )
+  const setGeneratedPrompt = (nextPrompt: string) => {
+    generatedPromptRef.current = nextPrompt
+    promptManuallyEditedRef.current = false
+    if (useStore.getState().prompt !== nextPrompt) setPrompt(nextPrompt)
+  }
+  const canReplaceWithGeneratedPrompt = (nextPrompt: string) => {
+    const currentPrompt = useStore.getState().prompt
+    if (promptManuallyEditedRef.current) return false
+    if (!currentPrompt.trim()) return true
+    if (generatedPromptRef.current !== null) return currentPrompt === generatedPromptRef.current
+    return currentPrompt === nextPrompt
+  }
   const historyTasks = retouchTasks
   const maskTargetInput = maskDraft ? inputImages.find((image) => image.id === maskDraft.targetImageId) ?? null : null
   const referenceImages = maskTargetInput ? inputImages.filter((image) => image.id !== maskTargetInput.id) : inputImages
@@ -1333,9 +1336,9 @@ export default function RetouchWorkspace() {
 
   useEffect(() => {
     if (selectedCategoryId !== 'graduateScene' || !selectedFilmScene || selectedTemplateIds.length) return
-    if (!isGraduateSceneAutoPrompt(prompt)) return
     const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId)
-    if (prompt !== nextPrompt) setPrompt(nextPrompt)
+    if (!canReplaceWithGeneratedPrompt(nextPrompt)) return
+    setGeneratedPrompt(nextPrompt)
   }, [prompt, selectedCategoryId, selectedFilmScene, selectedGraduateBackgroundId, selectedTemplateIds.length, setPrompt])
 
   useEffect(() => {
@@ -1431,7 +1434,7 @@ export default function RetouchWorkspace() {
     setSelectedGroupName('影视作品名场面')
     setSelectedTemplateIds([])
     setSelectedFilmSceneId(scene.id)
-    setPrompt(buildGraduateScenePrompt(scene, selectedGraduateBackgroundId))
+    setGeneratedPrompt(buildGraduateScenePrompt(scene, selectedGraduateBackgroundId))
     setParams({ ...highParams, n: 1 })
     setSelectedHistoryTaskId(null)
     setCompareEnabled(false)
@@ -1482,7 +1485,7 @@ export default function RetouchWorkspace() {
     setSelectedCategoryId(template.category)
     setSelectedGroupName(template.group ?? template.category)
     setSelectedTemplateIds(nextTemplateIds)
-    setPrompt(buildStackedRetouchPrompt(nextTemplates, selectedStrengthId, selectedTargetId))
+    setGeneratedPrompt(buildStackedRetouchPrompt(nextTemplates, selectedStrengthId, selectedTargetId))
     if (nextTemplates.length) setParams(mergeTemplateParams(nextTemplates))
     showToast(
       selectedTemplateIds.includes(template.id)
@@ -1494,22 +1497,37 @@ export default function RetouchWorkspace() {
 
   const applyStrength = (strengthId: RetouchStrengthId) => {
     setSelectedStrengthId(strengthId)
-    if (selectedTemplates.length) setPrompt(buildStackedRetouchPrompt(selectedTemplates, strengthId, selectedTargetId))
-    if (isGraduateSceneWorkflow && selectedFilmScene) setPrompt(buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId))
+    if (selectedTemplates.length) {
+      const nextPrompt = buildStackedRetouchPrompt(selectedTemplates, strengthId, selectedTargetId)
+      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
+    }
+    if (isGraduateSceneWorkflow && selectedFilmScene) {
+      const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId)
+      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
+    }
     showToast(`强度已设为「${strengthOptions.find((option) => option.id === strengthId)?.label ?? '标准'}」`, 'success')
   }
 
   const applyTarget = (targetId: RetouchTargetId) => {
     setSelectedTargetId(targetId)
-    if (selectedTemplates.length) setPrompt(buildStackedRetouchPrompt(selectedTemplates, selectedStrengthId, targetId))
-    if (isGraduateSceneWorkflow && selectedFilmScene) setPrompt(buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId))
+    if (selectedTemplates.length) {
+      const nextPrompt = buildStackedRetouchPrompt(selectedTemplates, selectedStrengthId, targetId)
+      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
+    }
+    if (isGraduateSceneWorkflow && selectedFilmScene) {
+      const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId)
+      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
+    }
     showToast(`对象已设为「${targetOptions.find((option) => option.id === targetId)?.label ?? '自动'}」`, 'success')
   }
 
   const applyGraduateBackground = (backgroundId: GraduateBackgroundId) => {
     setSelectedGraduateBackgroundId(backgroundId)
     if (backgroundId !== 'uploaded') removeGraduateBackgroundReference()
-    if (selectedFilmScene) setPrompt(buildGraduateScenePrompt(selectedFilmScene, backgroundId))
+    if (selectedFilmScene) {
+      const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, backgroundId)
+      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
+    }
     if (backgroundId === 'uploaded' && !useStore.getState().inputImages.some(isGraduateBackgroundReferenceImage)) {
       showToast('请选择一张新背景参考图', 'info')
       backgroundInputRef.current?.click()
@@ -1662,7 +1680,10 @@ export default function RetouchWorkspace() {
       ]
       setSelectedGraduateBackgroundId('uploaded')
       setInputImages(orderGraduateReferenceImages(nextImages))
-      if (selectedFilmScene) setPrompt(buildGraduateScenePrompt(selectedFilmScene, 'uploaded'))
+      if (selectedFilmScene) {
+        const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, 'uploaded')
+        if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
+      }
       showToast('已上传新背景参考', 'success')
     } catch (error) {
       showToast(`新背景上传失败：${error instanceof Error ? error.message : String(error)}`, 'error')
@@ -1827,7 +1848,8 @@ export default function RetouchWorkspace() {
                           if (category.id === 'graduateScene') {
                             setSelectedGroupName('影视作品名场面')
                             setSelectedTemplateIds([])
-                            setPrompt(selectedFilmScene ? buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId) : '')
+                            const nextPrompt = selectedFilmScene ? buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId) : ''
+                            if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
                             return
                           }
                           const ids = categoryTemplateAliases[category.id] ?? [category.id]
@@ -2290,7 +2312,10 @@ export default function RetouchWorkspace() {
                 <span>{promptFieldLabel}</span>
                 <textarea
                   value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
+                  onChange={(event) => {
+                    promptManuallyEditedRef.current = true
+                    setPrompt(event.target.value)
+                  }}
                   placeholder={promptPlaceholder}
                   rows={5}
                 />
