@@ -4,9 +4,11 @@ import { normalizeBaseUrl } from '../lib/api'
 import { isApiProxyAvailable, isApiProxyLocked, readClientDevProxyConfig } from '../lib/devProxy'
 import { useStore, exportData, importData, clearData, type SettingsTab } from '../store'
 import {
+  createDefaultGrokProfile,
   createDefaultOpenAIProfile,
   DEFAULT_FAL_BASE_URL,
   DEFAULT_FAL_MODEL,
+  DEFAULT_GROK_MODEL,
   DEFAULT_IMAGES_MODEL,
   DEFAULT_OPENAI_PROFILE_ID,
   DEFAULT_RESPONSES_MODEL,
@@ -715,6 +717,49 @@ export default function SettingsModal() {
     setShowProfileMenu(false)
   }
 
+  const applyGrokPreset = () => {
+    setReusedTaskApiProfile(null)
+    const existingProfile = draft.profiles.find((profile) => (
+      profile.provider === 'openai' && profile.model.trim() === DEFAULT_GROK_MODEL
+    ))
+
+    if (existingProfile) {
+      const nextDraft = normalizeSettings({
+        ...draft,
+        profiles: draft.profiles.map((profile) => profile.id === existingProfile.id
+          ? {
+              ...profile,
+              name: 'Grok Imagine',
+              apiMode: 'images',
+              codexCli: false,
+              model: DEFAULT_GROK_MODEL,
+              streamImages: false,
+              streamPartialImages: 0,
+              responseFormatB64Json: true,
+            }
+          : profile),
+        activeProfileId: existingProfile.id,
+      })
+      commitSettings(nextDraft)
+      showToast('已切换到 Grok Imagine 预设', 'success')
+      return
+    }
+
+    const profile = createDefaultGrokProfile({
+      id: newId('grok'),
+      baseUrl: activeProfile.baseUrl,
+      apiKey: activeProfile.apiKey,
+      apiProxy: activeProfile.apiProxy,
+    })
+    const nextDraft = normalizeSettings({
+      ...draft,
+      profiles: [...draft.profiles, profile],
+      activeProfileId: profile.id,
+    })
+    commitSettings(nextDraft)
+    showToast('已创建并启用 Grok Imagine 预设', 'success')
+  }
+
   const duplicateActiveProfile = () => {
     setReusedTaskApiProfile(null)
     setDuplicateProfileTooltipVisible(false)
@@ -1338,14 +1383,50 @@ export default function SettingsModal() {
                 <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-3.5 py-2.5 text-[13px] leading-relaxed text-blue-900 dark:border-blue-400/15 dark:bg-blue-500/10 dark:text-blue-200">
                   <div className="font-semibold">常用接入只需要 4 项</div>
                   <div className="mt-1 text-blue-800/80 dark:text-blue-200/75">
-                    选择服务商，填写 API 地址、API 密钥和模型 ID。其他兼容、流式和超时选项放在高级设置里。
+                    选择配置，填写 API 地址和密钥，再确认模型 ID。其他选项放在高级设置里。
                   </div>
                 </div>
 
-              <div className="rounded-2xl border border-gray-200/70 bg-white/70 px-3.5 py-3 text-sm text-gray-700 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200">
-                <div className="flex min-w-0 items-center justify-between gap-3">
-                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-500">当前配置</span>
-                  <span className="min-w-0 truncate font-medium">{activeProfile.name}</span>
+              <div className="rounded-2xl border border-gray-200/70 bg-white/70 p-3.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">当前配置</span>
+                  <button
+                    type="button"
+                    onClick={createNewProfile}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-600 dark:border-white/[0.1] dark:bg-white/[0.05] dark:text-gray-300 dark:hover:border-blue-400/40 dark:hover:text-blue-300"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" />
+                    新建配置
+                  </button>
+                </div>
+                <Select
+                  value={activeProfile.id}
+                  onChange={(value) => switchProfile(String(value))}
+                  options={draft.profiles.map((profile) => ({
+                    label: `${profile.name} · ${profile.model}`,
+                    value: profile.id,
+                  }))}
+                  className="w-full rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 text-sm font-medium text-gray-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-gray-100 dark:focus:border-blue-400/60 dark:focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-cyan-200/80 bg-cyan-50/70 p-3.5 dark:border-cyan-400/20 dark:bg-cyan-500/[0.08]">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-cyan-950 dark:text-cyan-100">Grok Imagine</span>
+                      <span className="rounded-md bg-cyan-100 px-1.5 py-0.5 text-[10px] font-bold text-cyan-800 dark:bg-cyan-400/15 dark:text-cyan-200">预设</span>
+                    </div>
+                    <div className="mt-1 truncate font-mono text-xs text-cyan-800/75 dark:text-cyan-200/70">{DEFAULT_GROK_MODEL}</div>
+                    <div className="mt-1 text-xs text-cyan-800/70 dark:text-cyan-200/65">非流式 · Base64 图片数据</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applyGrokPreset}
+                    className="shrink-0 rounded-xl bg-cyan-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 dark:bg-cyan-500 dark:text-cyan-950 dark:hover:bg-cyan-400"
+                  >
+                    {activeProfile.provider === 'openai' && activeProfile.model === DEFAULT_GROK_MODEL ? '重新应用' : '使用预设'}
+                  </button>
                 </div>
               </div>
 
@@ -1475,6 +1556,8 @@ export default function SettingsModal() {
                     <>当前使用 {activeCustomProvider.name}。</>
                   ) : (activeProfile.apiMode ?? DEFAULT_SETTINGS.apiMode) === 'responses' ? (
                     <>推荐 <code className="rounded bg-white px-1.5 py-0.5 font-mono text-gray-800 ring-1 ring-gray-200 dark:bg-white/[0.08] dark:text-gray-200 dark:ring-white/[0.08]">{DEFAULT_RESPONSES_MODEL}</code></>
+                  ) : activeProfile.model === DEFAULT_GROK_MODEL ? (
+                    <>当前预设 <code className="rounded bg-white px-1.5 py-0.5 font-mono text-gray-800 ring-1 ring-gray-200 dark:bg-white/[0.08] dark:text-gray-200 dark:ring-white/[0.08]">{DEFAULT_GROK_MODEL}</code></>
                   ) : (
                     <>推荐 <code className="rounded bg-white px-1.5 py-0.5 font-mono text-gray-800 ring-1 ring-gray-200 dark:bg-white/[0.08] dark:text-gray-200 dark:ring-white/[0.08]">{DEFAULT_IMAGES_MODEL}</code></>
                   )}

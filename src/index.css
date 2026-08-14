@@ -1144,24 +1144,6 @@ input[type="number"] {
   color: #67e8f9;
 }
 
-.retouch-category-button.is-featured {
-  border-color: rgba(251, 191, 36, 0.48);
-  background:
-    linear-gradient(135deg, rgba(251, 191, 36, 0.17), rgba(34, 211, 238, 0.12)),
-    rgba(255, 255, 255, 0.04);
-  color: #fef3c7;
-  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.08);
-}
-
-.retouch-category-button.is-featured:hover,
-.retouch-category-button.is-featured.is-active {
-  border-color: rgba(251, 191, 36, 0.78);
-  background:
-    linear-gradient(135deg, rgba(251, 191, 36, 0.24), rgba(34, 211, 238, 0.16)),
-    rgba(34, 211, 238, 0.08);
-  color: #fff7ed;
-}
-
 .retouch-category-button svg {
   width: 1.24rem;
   height: 1.24rem;
@@ -1191,17 +1173,6 @@ input[type="number"] {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.retouch-category-badge {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: #fbbf24;
-  color: #111827;
-  padding: 0.12rem 0.24rem;
-  font-size: 0.54rem;
-  font-weight: 900;
-  line-height: 1;
 }
 
 .retouch-category-summary {
@@ -1313,79 +1284,6 @@ input[type="number"] {
   font-size: 0.58rem;
   font-weight: 900;
   line-height: 1;
-}
-
-.retouch-graduate-background-panel {
-  gap: 0.48rem;
-}
-
-.retouch-graduate-background-panel .retouch-option-row {
-  align-items: start;
-}
-
-.retouch-graduate-background-panel .retouch-option-row > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.38rem;
-}
-
-.retouch-graduate-background-panel .retouch-option-row button {
-  min-height: 3.2rem;
-  text-align: left;
-  padding: 0.54rem 1.7rem 0.54rem 0.62rem;
-}
-
-.retouch-background-upload {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 3rem;
-  border: 1px dashed rgba(251, 191, 36, 0.62);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(251, 191, 36, 0.14), rgba(34, 211, 238, 0.08)),
-    rgba(255, 255, 255, 0.035);
-  color: #fef3c7;
-  padding: 0.48rem 0.56rem;
-  text-align: left;
-}
-
-.retouch-background-upload:hover {
-  border-color: rgba(251, 191, 36, 0.86);
-  background:
-    linear-gradient(135deg, rgba(251, 191, 36, 0.21), rgba(34, 211, 238, 0.12)),
-    rgba(255, 255, 255, 0.055);
-  color: #fff7ed;
-}
-
-.retouch-background-upload svg {
-  width: 1.12rem;
-  height: 1.12rem;
-  justify-self: center;
-}
-
-.retouch-background-upload span {
-  min-width: 0;
-  display: grid;
-  gap: 0.1rem;
-}
-
-.retouch-background-upload strong,
-.retouch-background-upload small {
-  white-space: normal;
-}
-
-.retouch-background-upload strong {
-  color: inherit;
-  font-size: 0.92rem;
-  font-weight: 820;
-}
-
-.retouch-background-upload small {
-  color: #fde68a;
-  font-size: 0.7rem;
-  font-weight: 700;
 }
 
 .retouch-template-group {
@@ -1504,179 +1402,6 @@ input[type="number"] {
   font-weight: 620;
   line-height: 1.32;
   white-space: normal;
-}
-
-.retouch-film-scene-panel {
-  min-height: 0;
-  display: grid;
-  gap: 0.52rem;
-}
-
-.retouch-film-scene-guide {
-  display: grid;
-  gap: 0.24rem;
-  border: 1px solid rgba(34, 211, 238, 0.18);
-  border-radius: 8px;
-  background: rgba(8, 47, 73, 0.22);
-  padding: 0.58rem 0.62rem;
-}
-
-.retouch-film-scene-guide strong {
-  color: #f4f4f5;
-  font-size: 1.02rem;
-  font-weight: 800;
-}
-
-.retouch-film-scene-guide span {
-  color: #a5f3fc;
-  font-size: 0.82rem;
-  font-weight: 650;
-  line-height: 1.42;
-}
-
-.retouch-film-scene-status {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.32rem;
-}
-
-.retouch-film-scene-status span {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.045);
-  color: #a1a1aa;
-  padding: 0.38rem 0.44rem;
-  font-size: 0.78rem;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.retouch-film-scene-status span.is-ready {
-  border-color: rgba(34, 211, 238, 0.42);
-  background: rgba(34, 211, 238, 0.12);
-  color: #67e8f9;
-}
-
-.retouch-film-scene-upload {
-  display: grid;
-  grid-template-columns: 2.1rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.55rem;
-  min-height: 3.7rem;
-  border: 1px dashed rgba(251, 191, 36, 0.62);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(34, 211, 238, 0.1)),
-    rgba(255, 255, 255, 0.04);
-  color: #fef3c7;
-  padding: 0.58rem 0.62rem;
-  text-align: left;
-}
-
-.retouch-film-scene-upload:hover {
-  border-color: rgba(251, 191, 36, 0.88);
-  background:
-    linear-gradient(135deg, rgba(251, 191, 36, 0.22), rgba(34, 211, 238, 0.14)),
-    rgba(255, 255, 255, 0.06);
-  color: #fff7ed;
-}
-
-.retouch-film-scene-upload svg {
-  width: 1.22rem;
-  height: 1.22rem;
-  justify-self: center;
-}
-
-.retouch-film-scene-upload span {
-  min-width: 0;
-  display: grid;
-  gap: 0.12rem;
-}
-
-.retouch-film-scene-upload strong {
-  color: inherit;
-  font-size: 0.96rem;
-  font-weight: 820;
-  line-height: 1.18;
-}
-
-.retouch-film-scene-upload small {
-  color: #fde68a;
-  font-size: 0.74rem;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.retouch-film-scene-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.retouch-film-scene-card {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.045);
-  color: #d4d4d8;
-  text-align: left;
-}
-
-.retouch-film-scene-card:hover,
-.retouch-film-scene-card.is-active {
-  border-color: rgba(34, 211, 238, 0.58);
-  background: rgba(34, 211, 238, 0.1);
-  color: #67e8f9;
-}
-
-.retouch-film-scene-card.is-active {
-  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.28);
-}
-
-.retouch-film-scene-card.is-custom {
-  border-color: rgba(251, 191, 36, 0.42);
-  background: rgba(251, 191, 36, 0.07);
-}
-
-.retouch-film-scene-card.is-custom:hover,
-.retouch-film-scene-card.is-custom.is-active {
-  border-color: rgba(251, 191, 36, 0.74);
-  background: rgba(251, 191, 36, 0.14);
-}
-
-.retouch-film-scene-card img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.retouch-film-scene-card > span {
-  display: grid;
-  gap: 0.08rem;
-  padding: 0.38rem 0.44rem 0.44rem;
-}
-
-.retouch-film-scene-card strong {
-  min-width: 0;
-  overflow: hidden;
-  color: #f4f4f5;
-  font-size: 0.9rem;
-  font-weight: 780;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.retouch-film-scene-card small {
-  color: #a1a1aa;
-  font-size: 0.74rem;
-  font-weight: 700;
 }
 
 .retouch-selected-mark {
@@ -2446,44 +2171,10 @@ input[type="number"] {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.retouch-input-thumb.is-film-scene {
-  width: 3.25rem;
-  border-color: rgba(34, 211, 238, 0.62);
-  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.16);
-}
-
-.retouch-input-thumb.is-background {
-  width: 3.25rem;
-  border-color: rgba(251, 191, 36, 0.64);
-  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.18);
-}
-
 .retouch-input-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.retouch-input-thumb-label {
-  position: absolute;
-  left: 0.12rem;
-  bottom: 0.12rem;
-  max-width: calc(100% - 0.24rem);
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(8, 47, 73, 0.9);
-  color: #a5f3fc;
-  padding: 0.05rem 0.24rem;
-  font-size: 0.52rem;
-  font-weight: 860;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.retouch-input-thumb.is-background .retouch-input-thumb-label {
-  background: rgba(120, 53, 15, 0.9);
-  color: #fde68a;
 }
 
 .retouch-input-thumb button {
@@ -2789,14 +2480,6 @@ body:has([data-home-main]) .toast-enter {
     min-width: 11rem;
   }
 
-  .retouch-film-scene-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .retouch-film-scene-guide span {
-    overflow: hidden;
-  }
-
   .retouch-zoom-control {
     grid-template-columns: auto minmax(5rem, 8rem) 3.2rem;
   }
@@ -2976,21 +2659,12 @@ body:has([data-home-main]) .toast-enter {
     overflow: visible;
   }
 
-  .retouch-film-scene-panel {
-    min-height: auto;
-  }
-
   .retouch-group-tabs,
-  .retouch-film-scene-grid,
   .retouch-template-chip-grid {
     display: flex;
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 0.18rem;
-  }
-
-  .retouch-film-scene-card {
-    min-width: 10.5rem;
   }
 
   .retouch-template-card {

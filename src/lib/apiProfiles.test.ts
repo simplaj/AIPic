@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_FAL_BASE_URL,
   DEFAULT_FAL_MODEL,
+  DEFAULT_GROK_MODEL,
   DEFAULT_IMAGES_MODEL,
   DEFAULT_OPENAI_PROFILE_ID,
   DEFAULT_SETTINGS,
+  createDefaultGrokProfile,
   createDefaultOpenAIProfile,
   createDefaultFalProfile,
   findEquivalentApiProfile,
@@ -18,6 +20,20 @@ import {
 
 afterEach(() => {
   vi.unstubAllEnvs()
+})
+
+describe('createDefaultGrokProfile', () => {
+  it('creates an Images API profile with non-streaming Base64 output', () => {
+    expect(createDefaultGrokProfile()).toMatchObject({
+      name: 'Grok Imagine',
+      provider: 'openai',
+      model: DEFAULT_GROK_MODEL,
+      apiMode: 'images',
+      streamImages: false,
+      streamPartialImages: 0,
+      responseFormatB64Json: true,
+    })
+  })
 })
 
 describe('validateApiProfile', () => {

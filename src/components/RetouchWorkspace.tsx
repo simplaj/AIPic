@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent, WheelEvent as ReactWheelEvent } from 'react'
-import { addImageFromFile, createInputImageFromFile, ensureImageCached, submitTask, useStore } from '../store'
-import type { InputImage, TaskParams, TaskRecord } from '../types'
+import { addImageFromFile, ensureImageCached, submitTask, useStore } from '../store'
+import type { TaskParams, TaskRecord } from '../types'
 import { getActiveApiProfile, validateApiProfile } from '../lib/apiProfiles'
 import { calculateImageSize, normalizeImageSize, type SizeTier } from '../lib/size'
 import { CloseIcon, EditIcon, HistoryIcon, PhotoIcon, RefreshIcon, SettingsIcon, WrenchIcon } from './icons'
@@ -22,15 +22,12 @@ type RetouchCategoryId =
   | 'background'
   | 'global'
   | 'portraitColor'
-  | 'graduateScene'
 type RetouchTemplateId = string
 type RetouchStrengthId = 'light' | 'standard' | 'strong' | 'max'
 type RetouchTargetId = 'auto' | 'female' | 'male' | 'child' | 'product'
 type RetouchPreviewMode = 'empty' | 'current' | 'history'
 type RetouchOutputSizeId = 'auto' | SizeTier
 type RetouchGenerationMode = 'text' | 'edit'
-type FilmSceneId = `film-scene-${number}` | `custom-film-scene-${string}`
-type GraduateBackgroundId = 'original' | 'uploaded' | 'scene'
 
 type RetouchTemplate = {
   id: RetouchTemplateId
@@ -40,15 +37,6 @@ type RetouchTemplate = {
   scenario: string
   prompt: string
   params: Partial<TaskParams>
-}
-
-type FilmSceneAsset = {
-  id: FilmSceneId
-  label: string
-  src: string
-  prompt: string
-  source: 'built-in' | 'custom'
-  inputImage?: InputImage
 }
 
 const highParams: Partial<TaskParams> = { n: 1, quality: 'high', output_format: 'png' }
@@ -82,23 +70,7 @@ const formatOptions: Array<{ label: string; value: TaskParams['output_format'] }
   { label: 'WebP', value: 'webp' },
   { label: 'JPEG', value: 'jpeg' },
 ]
-const publicAssetBase = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
-const getPublicAssetUrl = (path: string) => `${publicAssetBase}/${path.replace(/^\/+/, '')}`
-
-const filmSceneAssets: FilmSceneAsset[] = Array.from({ length: 10 }, (_, index) => {
-  const number = index + 1
-  return {
-    id: `film-scene-${number}` as FilmSceneId,
-    label: `名场面 ${String(number).padStart(2, '0')}`,
-    src: getPublicAssetUrl(`film-scenes/${number}.png`),
-    prompt: `参考内置影视作品名场面素材 ${number} 的动作关系、群像站位、镜头构图、画面节奏、光线和整体画风。`,
-    source: 'built-in',
-  }
-})
-const defaultFilmSceneId: FilmSceneId | null = filmSceneAssets[0]?.id ?? null
-
-const retouchCategories: Array<{ id: RetouchCategoryId; title: string; shortTitle: string; summary: string; icon: typeof PhotoIcon; badge?: string }> = [
-  { id: 'graduateScene', title: '毕业仿拍', shortTitle: '毕业', summary: '毕业照 / 名场面 / 群像', icon: PhotoIcon, badge: '新' },
+const retouchCategories: Array<{ id: RetouchCategoryId; title: string; shortTitle: string; summary: string; icon: typeof PhotoIcon }> = [
   { id: 'aiColor', title: 'AI色彩', shortTitle: '色彩', summary: 'AI追色 / 样片 / 套图', icon: RefreshIcon },
   { id: 'tone', title: '调色', shortTitle: '调色', summary: '白平衡 / 全局 / 黑白场', icon: SettingsIcon },
   { id: 'local', title: '局部', shortTitle: '局部', summary: '面部 / 背景 / 区域色彩', icon: EditIcon },
@@ -130,27 +102,6 @@ const targetOptions: Array<{ id: RetouchTargetId; label: string; prompt: string 
   { id: 'male', label: '男性', prompt: '按男性人像审美处理，保留骨相、皮肤质感和自然面部结构，避免过度柔化。' },
   { id: 'child', label: '儿童', prompt: '按儿童或宝宝人像处理，保留真实稚嫩肤质、表情和安全自然的比例。' },
   { id: 'product', label: '产品/物体', prompt: '按产品或非人像主体处理，重点保护结构、材质、文字、边缘和真实透视。' },
-]
-
-const graduateBackgroundOptions: Array<{ id: GraduateBackgroundId; label: string; hint: string; prompt: string }> = [
-  {
-    id: 'original',
-    label: '保留原背景',
-    hint: '默认',
-    prompt: '背景策略：尽量保留第一张毕业照中的原始背景、场地、建筑、教室、操场、横幅、树木、天空和环境结构；只做动作、队形、镜头和氛围适配，不要整体替换背景。',
-  },
-  {
-    id: 'uploaded',
-    label: '新上传背景',
-    hint: '第三张参考图',
-    prompt: '背景策略：使用用户新上传的背景参考作为最终场景来源。第三张参考图只用于学习背景、空间、光线和环境结构，人物身份、人数、服装和动作来源仍然必须分别来自毕业照和名场面参考。',
-  },
-  {
-    id: 'scene',
-    label: '名场面背景',
-    hint: '电影场景',
-    prompt: '背景策略：允许使用第二张名场面参考图中的背景、空间、光线和影视氛围，但不能复制参考图人物、服装或无关 NPC；最终人物仍全部来自毕业照。',
-  },
 ]
 
 const retouchTemplates: RetouchTemplate[] = [
@@ -879,35 +830,6 @@ function buildStackedRetouchPrompt(templates: RetouchTemplate[], strengthId: Ret
   return `对输入图片执行以下专业修图组合，按顺序叠加处理，不互相覆盖：\n${steps}\n\n执行设置：${strength.prompt}${target.prompt} 保持专业修图逻辑：只修改已选择功能相关区域，不要改动无关主体、身份、文字、构图和真实光影。`
 }
 
-function buildGraduateScenePrompt(scene: FilmSceneAsset, backgroundId: GraduateBackgroundId) {
-  const background = graduateBackgroundOptions.find((option) => option.id === backgroundId) ?? graduateBackgroundOptions[0]
-  const backgroundInstruction = background.id === 'original'
-    ? '- 尽量保留原毕业照中的背景、场地、建筑、教室、操场、横幅、树木、天空和环境结构；在原毕业照背景下完成同一名场面的动作和站位仿拍。\n- 只有当动作重排确实需要时，才允许对原背景做少量透视、光影和氛围适配，不要把背景整体替换成名场面素材的背景。'
-    : background.id === 'uploaded'
-      ? '- 背景以第三张新上传背景参考图为准，替换或重构最终场景时只学习新背景的空间、光线、环境结构和氛围；不要从新背景图中复制人物或无关物体。'
-      : '- 背景可以使用第二张名场面参考图中的空间、光线、环境结构和影视氛围；只能迁移背景和画风，不能复制名场面参考图中的人物、服装或无关 NPC。'
-
-  return `把用户上传的毕业照改造成「${scene.label}」式影视作品名场面仿拍。
-
-输入图规则：
-1. 第一张参考图或前面的毕业照参考图是用户毕业照，是唯一的人物身份和服装来源。
-2. 第二张参考图是我们提供的影视作品名场面素材，只用于学习动作、站位、构图、镜头、光线、色彩和画风。
-${background.id === 'uploaded' ? '3. 第三张参考图是用户新上传背景，只用于学习背景、空间、光线和环境结构。' : ''}
-
-必须严格保留：
-- 毕业照里的每一个人物都不能变：脸、五官、发型、肤色、表情识别特征、身高体型关系和人物数量都必须保留。
-- 毕业照里的衣服绝对不能变：款式、颜色、领口、袖口、校服/学位服/班服结构、徽章、Logo、文字、图案和褶皱质感都必须保留。
-- 不允许换脸、不允许换衣服、不允许增删人物、不允许把参考素材里的人物脸或服装复制到毕业照人物身上。
-
-允许修改：
-- 根据名场面素材调整毕业照人物的动作、姿态、队形、站位、镜头透视、画面氛围和影视画风。
-- 人数不一致时，必须以毕业照人数为准，只保留原毕业照里真实存在的人物；名场面参考图里多出来的人物、群众演员、路人、NPC 都不能出现在最终结果中。
-${backgroundInstruction}
-
-${scene.prompt}
-执行设置：${background.prompt} 最终结果要像真实毕业照团队仿拍影视名场面，人物身份和服装必须一眼可确认没有改变。`
-}
-
 function mergeTemplateParams(templates: RetouchTemplate[]) {
   return templates.reduce<Partial<TaskParams>>((merged, template) => ({ ...merged, ...template.params }), {})
 }
@@ -1060,25 +982,6 @@ async function loadFiles(files: FileList | File[]) {
   return imageFiles.length
 }
 
-function isFilmSceneReferenceImage(image: InputImage) {
-  return image.meta?.source === 'built-in-film-scene' || image.meta?.source === 'custom-film-scene'
-}
-
-function isGraduateBackgroundReferenceImage(image: InputImage) {
-  return image.meta?.source === 'graduate-background'
-}
-
-function isGraduateAuxiliaryReferenceImage(image: InputImage) {
-  return isFilmSceneReferenceImage(image) || isGraduateBackgroundReferenceImage(image)
-}
-
-function orderGraduateReferenceImages(images: InputImage[]) {
-  const graduatePhotos = images.filter((image) => !isGraduateAuxiliaryReferenceImage(image))
-  const filmSceneReferences = images.filter(isFilmSceneReferenceImage)
-  const backgroundReferences = images.filter(isGraduateBackgroundReferenceImage)
-  return [...graduatePhotos, ...filmSceneReferences, ...backgroundReferences]
-}
-
 export default function RetouchWorkspace() {
   const settings = useStore((s) => s.settings)
   const tasks = useStore((s) => s.tasks)
@@ -1091,7 +994,6 @@ export default function RetouchWorkspace() {
   const setMaskEditorImageId = useStore((s) => s.setMaskEditorImageId)
   const removeInputImage = useStore((s) => s.removeInputImage)
   const clearInputImages = useStore((s) => s.clearInputImages)
-  const setInputImages = useStore((s) => s.setInputImages)
   const clearMaskDraft = useStore((s) => s.clearMaskDraft)
   const maskDraft = useStore((s) => s.maskDraft)
   const showSettings = useStore((s) => s.showSettings)
@@ -1100,8 +1002,6 @@ export default function RetouchWorkspace() {
 
   const previewStageRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const filmSceneInputRef = useRef<HTMLInputElement>(null)
-  const backgroundInputRef = useRef<HTMLInputElement>(null)
   const [previewStageSize, setPreviewStageSize] = useState({ width: 0, height: 0 })
   const [previewImageAspect, setPreviewImageAspect] = useState<number | null>(null)
   const [previewZoom, setPreviewZoom] = useState(1)
@@ -1109,13 +1009,11 @@ export default function RetouchWorkspace() {
   const [previewPanDragging, setPreviewPanDragging] = useState(false)
   const previewPanStartRef = useRef({ pointerId: 0, clientX: 0, clientY: 0, x: 0, y: 0 })
   const [isDraggingUpload, setIsDraggingUpload] = useState(false)
-  const [selectedCategoryId, setSelectedCategoryId] = useState<RetouchCategoryId>('graduateScene')
+  const [selectedCategoryId, setSelectedCategoryId] = useState<RetouchCategoryId>('aiColor')
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<RetouchTemplateId[]>([])
-  const [selectedGroupName, setSelectedGroupName] = useState<string | null>('影视作品名场面')
+  const [selectedGroupName, setSelectedGroupName] = useState<string | null>('AI追色')
   const [selectedStrengthId, setSelectedStrengthId] = useState<RetouchStrengthId>('standard')
   const [selectedTargetId, setSelectedTargetId] = useState<RetouchTargetId>('auto')
-  const [selectedFilmSceneId, setSelectedFilmSceneId] = useState<FilmSceneId | null>(defaultFilmSceneId)
-  const [selectedGraduateBackgroundId, setSelectedGraduateBackgroundId] = useState<GraduateBackgroundId>('original')
   const [generationMode, setGenerationMode] = useState<RetouchGenerationMode>('edit')
   const [selectedHistoryTaskId, setSelectedHistoryTaskId] = useState<string | null>(null)
   const [compareEnabled, setCompareEnabled] = useState(false)
@@ -1123,7 +1021,6 @@ export default function RetouchWorkspace() {
   const [compareDragging, setCompareDragging] = useState(false)
   const [inputSessionStartedAt, setInputSessionStartedAt] = useState(0)
   const [textSessionStartedAt, setTextSessionStartedAt] = useState(0)
-  const [customFilmScenes, setCustomFilmScenes] = useState<FilmSceneAsset[]>([])
   const inputSignatureRef = useRef<string | null>(null)
   const generatedPromptRef = useRef<string | null>(null)
   const promptManuallyEditedRef = useRef(false)
@@ -1213,22 +1110,14 @@ export default function RetouchWorkspace() {
   const selectedTemplates = selectedTemplateIds
     .map((id) => retouchTemplates.find((template) => template.id === id))
     .filter((template): template is RetouchTemplate => Boolean(template))
-  const filmSceneOptions = useMemo<FilmSceneAsset[]>(() => [...customFilmScenes, ...filmSceneAssets], [customFilmScenes])
-  const selectedFilmScene = selectedFilmSceneId
-    ? filmSceneOptions.find((scene) => scene.id === selectedFilmSceneId) ?? null
-    : null
-  const isGraduateSceneWorkflow = selectedCategoryId === 'graduateScene'
-  const selectedConfigCount = selectedTemplates.length + (isGraduateSceneWorkflow && selectedFilmScene ? 1 : 0)
+  const selectedConfigCount = selectedTemplates.length
   const selectedTemplateSummary = selectedTemplates.length
     ? selectedTemplates.map((template) => template.title).join(' + ')
-    : isGraduateSceneWorkflow && selectedFilmScene
-      ? `毕业仿拍 · ${selectedFilmScene.label}`
-      : '自定义修图'
+    : '自定义修图'
   const currentWorkSummary = isTextToImageMode ? '文生图创作' : selectedTemplateSummary
   const selectedCategory = retouchCategories.find((category) => category.id === selectedCategoryId) ?? retouchCategories[0]
   const selectedStrength = strengthOptions.find((option) => option.id === selectedStrengthId) ?? strengthOptions[1]
   const selectedTarget = targetOptions.find((option) => option.id === selectedTargetId) ?? targetOptions[0]
-  const selectedGraduateBackground = graduateBackgroundOptions.find((option) => option.id === selectedGraduateBackgroundId) ?? graduateBackgroundOptions[0]
   const categoryIds = categoryTemplateAliases[selectedCategoryId] ?? [selectedCategoryId]
   const categoryTemplates = retouchTemplates.filter((template) => categoryIds.includes(template.category))
   const groupedCategoryTemplates = categoryTemplates.reduce<Array<{ group: string; templates: RetouchTemplate[] }>>((groups, template) => {
@@ -1246,7 +1135,6 @@ export default function RetouchWorkspace() {
     : groupedCategoryTemplates[0]?.group ?? null
   const activeGroupTemplates = groupedCategoryTemplates.find((group) => group.group === activeGroupName)?.templates ?? []
   const getCategorySelectionCount = (categoryId: RetouchCategoryId) => {
-    if (categoryId === 'graduateScene') return selectedFilmScene ? 1 : 0
     const ids = categoryTemplateAliases[categoryId] ?? [categoryId]
     return selectedTemplates.filter((template) => ids.includes(template.category)).length
   }
@@ -1268,8 +1156,6 @@ export default function RetouchWorkspace() {
   const historyTasks = retouchTasks
   const maskTargetInput = maskDraft ? inputImages.find((image) => image.id === maskDraft.targetImageId) ?? null : null
   const referenceImages = maskTargetInput ? inputImages.filter((image) => image.id !== maskTargetInput.id) : inputImages
-  const graduatePhotoImages = inputImages.filter((image) => !isGraduateAuxiliaryReferenceImage(image))
-  const uploadedBackgroundImage = inputImages.find(isGraduateBackgroundReferenceImage) ?? null
   const activeBaseUrl = activeProfile.baseUrl.trim()
   const requestBaseUrl = activeBaseUrl
     ? `${activeBaseUrl.replace(/\/+$/, '')}${activeBaseUrl.replace(/\/+$/, '').endsWith('/v1') ? '' : '/v1'}`
@@ -1335,13 +1221,6 @@ export default function RetouchWorkspace() {
   }, [retouchTasks, selectedHistoryTaskId])
 
   useEffect(() => {
-    if (selectedCategoryId !== 'graduateScene' || !selectedFilmScene || selectedTemplateIds.length) return
-    const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId)
-    if (!canReplaceWithGeneratedPrompt(nextPrompt)) return
-    setGeneratedPrompt(nextPrompt)
-  }, [prompt, selectedCategoryId, selectedFilmScene, selectedGraduateBackgroundId, selectedTemplateIds.length, setPrompt])
-
-  useEffect(() => {
     if (inputSignatureRef.current == null) {
       inputSignatureRef.current = currentInputSignature
       return
@@ -1383,98 +1262,15 @@ export default function RetouchWorkspace() {
     }
   }, [groupedCategoryTemplates, selectedGroupName])
 
-  const removeFilmSceneReference = () => {
-    const currentImages = useStore.getState().inputImages
-    if (currentImages.some(isFilmSceneReferenceImage)) {
-      setInputImages(currentImages.filter((image) => !isFilmSceneReferenceImage(image)))
-    }
-  }
-
-  const removeGraduateBackgroundReference = () => {
-    const currentImages = useStore.getState().inputImages
-    if (currentImages.some(isGraduateBackgroundReferenceImage)) {
-      setInputImages(currentImages.filter((image) => !isGraduateBackgroundReferenceImage(image)))
-    }
-  }
-
-  const clearFilmSceneSelection = () => {
-    setSelectedFilmSceneId(null)
-    removeFilmSceneReference()
-  }
-
-  const ensureFilmSceneReference = async (scene: FilmSceneAsset) => {
-    let image: InputImage | null = scene.inputImage ?? null
-    if (!image) {
-      const response = await fetch(scene.src)
-      if (!response.ok) throw new Error(`素材读取失败：HTTP ${response.status}`)
-      const blob = await response.blob()
-      const file = new File([blob], `${scene.id}.png`, { type: blob.type || 'image/png' })
-      image = await createInputImageFromFile(file)
-    }
-    if (!image) throw new Error('素材不是有效图片')
-
-    const currentImages = useStore.getState().inputImages
-    const nextImages = [
-      ...currentImages.filter((item) => !isFilmSceneReferenceImage(item)),
-      {
-        ...image,
-        meta: {
-          source: scene.source === 'custom' ? 'custom-film-scene' as const : 'built-in-film-scene' as const,
-          sceneId: scene.id,
-          label: scene.label,
-        },
-      },
-    ]
-    setInputImages(orderGraduateReferenceImages(nextImages))
-  }
-
-  const applyFilmScene = async (scene: FilmSceneAsset) => {
-    setGenerationMode('edit')
-    setSelectedCategoryId('graduateScene')
-    setSelectedGroupName('影视作品名场面')
-    setSelectedTemplateIds([])
-    setSelectedFilmSceneId(scene.id)
-    setGeneratedPrompt(buildGraduateScenePrompt(scene, selectedGraduateBackgroundId))
-    setParams({ ...highParams, n: 1 })
-    setSelectedHistoryTaskId(null)
-    setCompareEnabled(false)
-
-    if (!useStore.getState().inputImages.some((image) => !isGraduateAuxiliaryReferenceImage(image))) {
-      removeFilmSceneReference()
-      showToast(`已选择「${scene.label}」，请先上传毕业照原图`, 'info')
-      return
-    }
-
-    try {
-      await ensureFilmSceneReference(scene)
-      showToast(`已选择「${scene.label}」，素材已加入参考图`, 'success')
-    } catch (error) {
-      showToast(`名场面素材加入失败：${error instanceof Error ? error.message : String(error)}`, 'error')
-    }
-  }
-
   const handleRemoveInputImage = (index: number) => {
-    const removed = inputImages[index]
     removeInputImage(index)
-    if (removed && isFilmSceneReferenceImage(removed)) {
-      setSelectedFilmSceneId(null)
-      showToast('已移除名场面素材', 'success')
-    } else if (removed && isGraduateBackgroundReferenceImage(removed)) {
-      setSelectedGraduateBackgroundId('original')
-      showToast('已移除新上传背景', 'success')
-    }
   }
 
   const handleClearInputImages = () => {
     clearInputImages()
-    setSelectedFilmSceneId(null)
-    setSelectedGraduateBackgroundId('original')
   }
 
   const toggleTemplate = (template: RetouchTemplate) => {
-    if (selectedFilmSceneId) {
-      clearFilmSceneSelection()
-    }
     const nextTemplateIds = selectedTemplateIds.includes(template.id)
       ? selectedTemplateIds.filter((id) => id !== template.id)
       : [...selectedTemplateIds, template.id]
@@ -1501,10 +1297,6 @@ export default function RetouchWorkspace() {
       const nextPrompt = buildStackedRetouchPrompt(selectedTemplates, strengthId, selectedTargetId)
       if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
     }
-    if (isGraduateSceneWorkflow && selectedFilmScene) {
-      const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId)
-      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
-    }
     showToast(`强度已设为「${strengthOptions.find((option) => option.id === strengthId)?.label ?? '标准'}」`, 'success')
   }
 
@@ -1514,27 +1306,7 @@ export default function RetouchWorkspace() {
       const nextPrompt = buildStackedRetouchPrompt(selectedTemplates, selectedStrengthId, targetId)
       if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
     }
-    if (isGraduateSceneWorkflow && selectedFilmScene) {
-      const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId)
-      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
-    }
     showToast(`对象已设为「${targetOptions.find((option) => option.id === targetId)?.label ?? '自动'}」`, 'success')
-  }
-
-  const applyGraduateBackground = (backgroundId: GraduateBackgroundId) => {
-    setSelectedGraduateBackgroundId(backgroundId)
-    if (backgroundId !== 'uploaded') removeGraduateBackgroundReference()
-    if (selectedFilmScene) {
-      const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, backgroundId)
-      if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
-    }
-    if (backgroundId === 'uploaded' && !useStore.getState().inputImages.some(isGraduateBackgroundReferenceImage)) {
-      showToast('请选择一张新背景参考图', 'info')
-      backgroundInputRef.current?.click()
-      return
-    }
-    const label = graduateBackgroundOptions.find((option) => option.id === backgroundId)?.label ?? '保留原背景'
-    showToast(`背景已设为「${label}」`, 'success')
   }
 
   const updateComparePosition = (clientX: number) => {
@@ -1638,90 +1410,10 @@ export default function RetouchWorkspace() {
         setGenerationMode('edit')
         setSelectedHistoryTaskId(null)
         setCompareEnabled(false)
-        if (selectedFilmScene) {
-          try {
-            await ensureFilmSceneReference(selectedFilmScene)
-          } catch (error) {
-            showToast(`名场面素材加入失败：${error instanceof Error ? error.message : String(error)}`, 'error')
-            return
-          }
-        }
-        setInputImages(orderGraduateReferenceImages(useStore.getState().inputImages))
-        showToast(`已添加 ${count} 张毕业照参考图，已切换为图生图修图`, 'success')
+        showToast(`已添加 ${count} 张参考图，已切换为图生图修图`, 'success')
       }
     } catch (error) {
       showToast(`上传失败：${error instanceof Error ? error.message : String(error)}`, 'error')
-    }
-  }
-
-  const handleBackgroundFiles = async (files: FileList | File[]) => {
-    const imageFile = Array.from(files).find((file) => file.type.startsWith('image/'))
-    if (!imageFile) {
-      showToast('请上传图片格式的新背景参考', 'info')
-      return
-    }
-
-    try {
-      const image = await createInputImageFromFile(imageFile)
-      if (!image) {
-        showToast('新背景上传失败：图片无效', 'error')
-        return
-      }
-      const currentImages = useStore.getState().inputImages
-      const nextImages = [
-        ...currentImages.filter((item) => !isGraduateBackgroundReferenceImage(item)),
-        {
-          ...image,
-          meta: {
-            source: 'graduate-background' as const,
-            label: '新上传背景',
-          },
-        },
-      ]
-      setSelectedGraduateBackgroundId('uploaded')
-      setInputImages(orderGraduateReferenceImages(nextImages))
-      if (selectedFilmScene) {
-        const nextPrompt = buildGraduateScenePrompt(selectedFilmScene, 'uploaded')
-        if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
-      }
-      showToast('已上传新背景参考', 'success')
-    } catch (error) {
-      showToast(`新背景上传失败：${error instanceof Error ? error.message : String(error)}`, 'error')
-    }
-  }
-
-  const handleFilmSceneFiles = async (files: FileList | File[]) => {
-    const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'))
-    if (!imageFiles.length) {
-      showToast('请上传图片格式的名场面参考', 'info')
-      return
-    }
-
-    try {
-      const nextScenes: FilmSceneAsset[] = []
-      for (const file of imageFiles) {
-        const image = await createInputImageFromFile(file)
-        if (!image) continue
-        const labelIndex = customFilmScenes.length + nextScenes.length + 1
-        nextScenes.push({
-          id: `custom-film-scene-${image.id}` as FilmSceneId,
-          label: `自定义名场面 ${String(labelIndex).padStart(2, '0')}`,
-          src: image.dataUrl,
-          prompt: '参考用户上传的自定义影视作品名场面：只学习动作关系、群像站位、镜头构图、光线节奏、色彩氛围和整体画风。',
-          source: 'custom',
-          inputImage: image,
-        })
-      }
-      if (!nextScenes.length) {
-        showToast('名场面参考上传失败：图片无效', 'error')
-        return
-      }
-
-      setCustomFilmScenes((current) => [...nextScenes, ...current])
-      await applyFilmScene(nextScenes[0])
-      showToast(`已上传 ${nextScenes.length} 张名场面参考，请在左侧选择使用`, 'success')
-    } catch (error) {
-      showToast(`名场面参考上传失败：${error instanceof Error ? error.message : String(error)}`, 'error')
     }
   }
 
@@ -1730,32 +1422,6 @@ export default function RetouchWorkspace() {
       showToast(`请先配置 API：${apiIssue}`, 'error')
       setShowSettings(true, 'api')
       return
-    }
-    if (isImageEditMode && isGraduateSceneWorkflow) {
-      const scene = selectedFilmScene
-      const currentImages = useStore.getState().inputImages
-      if (!currentImages.some((image) => !isGraduateAuxiliaryReferenceImage(image))) {
-        showToast('毕业仿拍需要先上传用户毕业照原图', 'info')
-        return
-      }
-      if (!scene) {
-        showToast('请先选择一个影视作品名场面素材', 'info')
-        return
-      }
-      if (!currentImages.some(isFilmSceneReferenceImage)) {
-        try {
-          await ensureFilmSceneReference(scene)
-        } catch (error) {
-          showToast(`名场面素材加入失败：${error instanceof Error ? error.message : String(error)}`, 'error')
-          return
-        }
-      }
-      if (selectedGraduateBackgroundId === 'uploaded' && !useStore.getState().inputImages.some(isGraduateBackgroundReferenceImage)) {
-        showToast('已选择新上传背景，请先上传背景参考图', 'info')
-        backgroundInputRef.current?.click()
-        return
-      }
-      setInputImages(orderGraduateReferenceImages(useStore.getState().inputImages))
     }
     if (isImageEditMode && inputImages.length === 0) {
       showToast('图生图修图需要先上传参考图，或切换到文生图', 'info')
@@ -1791,10 +1457,8 @@ export default function RetouchWorkspace() {
   const promptFieldLabel = isTextToImageMode ? '画面描述' : '修图要求'
   const promptPlaceholder = isTextToImageMode
     ? '直接描述要生成的画面、主体、风格、镜头、光线、构图和比例。例：商业棚拍质感的护肤品海报，白色背景，柔和侧光，干净高级。'
-    : isGraduateSceneWorkflow
-      ? '可补充仿拍要求。默认会严格保留毕业照中每个人的身份和衣服，只参考名场面的动作、站位、构图和画风。'
-      : '直接描述要修哪里、强度、必须保留什么。例：保留人物身份和镜框结构，去掉皮肤瑕疵，肤色更干净自然。'
-  const submitLabel = apiIssue ? '配置 API' : isTextToImageMode ? '提交生成' : isGraduateSceneWorkflow ? '提交毕业仿拍' : maskDraft ? '提交局部修图' : '提交修图'
+    : '直接描述要修哪里、强度、必须保留什么。例：保留人物身份和镜框结构，去掉皮肤瑕疵，肤色更干净自然。'
+  const submitLabel = apiIssue ? '配置 API' : isTextToImageMode ? '提交生成' : maskDraft ? '提交局部修图' : '提交修图'
   const historyTitle = isTextToImageMode ? '生成历史' : '修图历史'
   const currentPromptFallback = isTextToImageMode
     ? '写清楚主体、场景、风格、构图、色彩、比例和不想出现的内容。'
@@ -1841,17 +1505,10 @@ export default function RetouchWorkspace() {
                       <button
                         key={category.id}
                         type="button"
-                        className={`retouch-category-button ${category.badge ? 'is-featured' : ''} ${active ? 'is-active' : ''}`}
+                        className={`retouch-category-button ${active ? 'is-active' : ''}`}
                         aria-label={`${category.title}${selectedCount ? `，已选 ${selectedCount} 项` : ''}`}
                         onClick={() => {
                           setSelectedCategoryId(category.id)
-                          if (category.id === 'graduateScene') {
-                            setSelectedGroupName('影视作品名场面')
-                            setSelectedTemplateIds([])
-                            const nextPrompt = selectedFilmScene ? buildGraduateScenePrompt(selectedFilmScene, selectedGraduateBackgroundId) : ''
-                            if (canReplaceWithGeneratedPrompt(nextPrompt)) setGeneratedPrompt(nextPrompt)
-                            return
-                          }
                           const ids = categoryTemplateAliases[category.id] ?? [category.id]
                           const firstTemplate = retouchTemplates.find((template) => ids.includes(template.category))
                           setSelectedGroupName(firstTemplate?.group ?? null)
@@ -1861,7 +1518,6 @@ export default function RetouchWorkspace() {
                         <span className="retouch-category-copy">
                           <span className="retouch-category-title">
                             <span className="retouch-category-name">{category.shortTitle}</span>
-                            {category.badge && <span className="retouch-category-badge">{category.badge}</span>}
                           </span>
                           <small className="retouch-category-summary">{category.summary}</small>
                         </span>
@@ -1882,148 +1538,53 @@ export default function RetouchWorkspace() {
                 </div>
 
                 <div className="retouch-template-list">
-                  {selectedCategoryId === 'graduateScene' ? (
-                    <div className="retouch-film-scene-panel">
-                      <div className="retouch-film-scene-guide">
-                        <strong>毕业照名场面仿拍</strong>
-                        <span>右侧上传毕业照，左侧上传或选择名场面参考。系统只借用动作、站位、构图和画风，人物身份与衣服必须保持不变。</span>
-                      </div>
-                      <div className="retouch-film-scene-status">
-                        <span className={graduatePhotoImages.length ? 'is-ready' : ''}>
-                          毕业照 {graduatePhotoImages.length ? `${graduatePhotoImages.length} 张` : '未上传'}
-                        </span>
-                        <span className={selectedFilmScene ? 'is-ready' : ''}>
-                          名场面 {selectedFilmScene?.label ?? '未选择'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="retouch-film-scene-upload"
-                        onClick={() => filmSceneInputRef.current?.click()}
-                      >
-                        <PhotoIcon className="h-4 w-4" />
-                        <span>
-                          <strong>上传名场面参考</strong>
-                          <small>影视截图 / 剧照 / 自定义动作参考</small>
-                        </span>
-                      </button>
-                      <div className="retouch-film-scene-grid" aria-label="影视作品名场面素材">
-                        {filmSceneOptions.map((scene) => {
-                          const isSelected = selectedFilmSceneId === scene.id
-                          return (
-                            <button
-                              key={scene.id}
-                              type="button"
-                              className={`retouch-film-scene-card ${scene.source === 'custom' ? 'is-custom' : ''} ${isSelected ? 'is-active' : ''}`}
-                              onClick={() => void applyFilmScene(scene)}
-                              aria-pressed={isSelected}
-                            >
-                              <img src={scene.src} alt={scene.label} />
-                              <span>
-                                <strong>{scene.label}</strong>
-                                <small>{isSelected ? '已选' : scene.source === 'custom' ? '自定义参考' : '点击仿拍'}</small>
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <input
-                        ref={filmSceneInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(event) => {
-                          const files = event.target.files
-                          if (files) void handleFilmSceneFiles(files)
-                          event.target.value = ''
-                        }}
-                      />
+                  <div className="retouch-group-tabs" aria-label="小功能分组">
+                    {groupedCategoryTemplates.map((group) => {
+                      const groupSelectedCount = getGroupSelectionCount(group.templates)
+                      return (
+                        <button
+                          key={group.group}
+                          type="button"
+                          className={activeGroupName === group.group ? 'is-active' : ''}
+                          onClick={() => setSelectedGroupName(group.group)}
+                        >
+                          <span>{group.group}</span>
+                          {groupSelectedCount > 0 && <strong>{groupSelectedCount}</strong>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="retouch-template-group">
+                    <div className="retouch-template-group-title">{activeGroupName}</div>
+                    <div className="retouch-template-chip-grid">
+                      {activeGroupTemplates.map((template) => {
+                        const isSelected = selectedTemplateIds.includes(template.id)
+                        return (
+                          <button
+                            key={template.id}
+                            type="button"
+                            className={`retouch-template-card ${isSelected ? 'is-active' : ''}`}
+                            onClick={() => toggleTemplate(template)}
+                            title={template.scenario}
+                            aria-pressed={isSelected}
+                          >
+                            <span className="retouch-template-card-title">
+                              <strong>{template.title}</strong>
+                              {isSelected && <span className="retouch-selected-mark">已选</span>}
+                            </span>
+                            <small>{template.scenario}</small>
+                          </button>
+                        )
+                      })}
                     </div>
-                  ) : (
-                    <>
-                      <div className="retouch-group-tabs" aria-label="小功能分组">
-                        {groupedCategoryTemplates.map((group) => {
-                          const groupSelectedCount = getGroupSelectionCount(group.templates)
-                          return (
-                            <button
-                              key={group.group}
-                              type="button"
-                              className={activeGroupName === group.group ? 'is-active' : ''}
-                              onClick={() => setSelectedGroupName(group.group)}
-                            >
-                              <span>{group.group}</span>
-                              {groupSelectedCount > 0 && <strong>{groupSelectedCount}</strong>}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <div className="retouch-template-group">
-                        <div className="retouch-template-group-title">{activeGroupName}</div>
-                        <div className="retouch-template-chip-grid">
-                          {activeGroupTemplates.map((template) => {
-                            const isSelected = selectedTemplateIds.includes(template.id)
-                            return (
-                              <button
-                                key={template.id}
-                                type="button"
-                                className={`retouch-template-card ${isSelected ? 'is-active' : ''}`}
-                                onClick={() => toggleTemplate(template)}
-                                title={template.scenario}
-                                aria-pressed={isSelected}
-                              >
-                                <span className="retouch-template-card-title">
-                                  <strong>{template.title}</strong>
-                                  {isSelected && <span className="retouch-selected-mark">已选</span>}
-                                </span>
-                                <small>{template.scenario}</small>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  </div>
                 </div>
 
                 <div className="retouch-section-heading">
                   <span>执行设置</span>
-                  <strong>{selectedCategoryId === 'graduateScene' ? selectedGraduateBackground.label : `${selectedStrength.label} · ${selectedTarget.label}`}</strong>
+                  <strong>{selectedStrength.label} · {selectedTarget.label}</strong>
                 </div>
-                {selectedCategoryId === 'graduateScene' ? (
-                  <div className="retouch-option-panel retouch-graduate-background-panel">
-                    <div className="retouch-option-row">
-                      <span>背景</span>
-                      <div>
-                        {graduateBackgroundOptions.map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            className={selectedGraduateBackgroundId === option.id ? 'is-active' : ''}
-                            onClick={() => applyGraduateBackground(option.id)}
-                          >
-                            <strong>{option.label}</strong>
-                            <small>{option.id === 'uploaded' && uploadedBackgroundImage ? '已上传' : option.hint}</small>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {selectedGraduateBackgroundId === 'uploaded' && (
-                      <button
-                        type="button"
-                        className="retouch-background-upload"
-                        onClick={() => backgroundInputRef.current?.click()}
-                      >
-                        <PhotoIcon className="h-4 w-4" />
-                        <span>
-                          <strong>{uploadedBackgroundImage ? '更换新背景' : '上传新背景'}</strong>
-                          <small>{uploadedBackgroundImage ? '已作为第三张参考图' : '校园 / 室内 / 城市 / 场景参考'}</small>
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="retouch-option-panel">
+                <div className="retouch-option-panel">
                     <div className="retouch-option-row">
                       <span>强度</span>
                       <div>
@@ -2054,8 +1615,7 @@ export default function RetouchWorkspace() {
                         ))}
                       </div>
                     </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </aside>
@@ -2269,29 +1829,16 @@ export default function RetouchWorkspace() {
               {inputImages.length > 0 && (
                 <div className="retouch-thumb-row">
                   {inputImages.slice(0, 5).map((image, index) => (
-                    (() => {
-                      const isFilmScene = isFilmSceneReferenceImage(image)
-                      const isBackground = isGraduateBackgroundReferenceImage(image)
-                      const label = isFilmScene ? '名场面' : isBackground ? '背景' : ''
-                      const title = isFilmScene
-                        ? `${image.meta?.label ?? '名场面素材'}：动作/画风参考`
-                        : isBackground
-                          ? `${image.meta?.label ?? '新上传背景'}：背景参考`
-                          : `毕业照/参考图 ${index + 1}`
-                      return (
-                        <div
-                          key={image.id}
-                          className={`retouch-input-thumb ${image.id === maskDraft?.targetImageId ? 'is-mask-target' : ''} ${isFilmScene ? 'is-film-scene' : ''} ${isBackground ? 'is-background' : ''}`}
-                          title={title}
-                        >
-                          <img src={image.dataUrl} alt={`参考图 ${index + 1}`} />
-                          {label && <span className="retouch-input-thumb-label">{label}</span>}
-                          <button type="button" aria-label={`移除参考图 ${index + 1}`} onClick={() => handleRemoveInputImage(index)}>
-                            <CloseIcon className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )
-                    })()
+                    <div
+                      key={image.id}
+                      className={`retouch-input-thumb ${image.id === maskDraft?.targetImageId ? 'is-mask-target' : ''}`}
+                      title={`参考图 ${index + 1}`}
+                    >
+                      <img src={image.dataUrl} alt={`参考图 ${index + 1}`} />
+                      <button type="button" aria-label={`移除参考图 ${index + 1}`} onClick={() => handleRemoveInputImage(index)}>
+                        <CloseIcon className="h-3 w-3" />
+                      </button>
+                    </div>
                   ))}
                   {inputImages.length > 5 && <span className="retouch-thumb-more">+{inputImages.length - 5}</span>}
                   <button type="button" className="retouch-clear-images" onClick={handleClearInputImages}>清空</button>
@@ -2404,17 +1951,6 @@ export default function RetouchWorkspace() {
               onChange={(event) => {
                 const files = event.target.files
                 if (files) void handleFiles(files)
-                event.target.value = ''
-              }}
-            />
-            <input
-              ref={backgroundInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => {
-                const files = event.target.files
-                if (files) void handleBackgroundFiles(files)
                 event.target.value = ''
               }}
             />

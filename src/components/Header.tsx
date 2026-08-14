@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../store'
 import { useVersionCheck } from '../hooks/useVersionCheck'
-import { PROMO_API_CONFIG } from '../lib/promoConfig'
 import HistoryModal from './HistoryModal'
 import { EditIcon, HistoryIcon, SettingsIcon } from './icons'
 
@@ -40,17 +39,6 @@ export default function Header() {
                 </a>
               )}
             </h1>
-            <a
-              href={PROMO_API_CONFIG.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-w-0 max-w-[min(52vw,34rem)] items-center gap-1.5 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 text-xs font-bold text-cyan-100 shadow-sm shadow-cyan-950/20 transition-colors hover:border-cyan-200/45 hover:bg-cyan-300/15 hover:text-white"
-              title={`${PROMO_API_CONFIG.label} ${PROMO_API_CONFIG.displayUrl}`}
-            >
-              <span className="shrink-0 rounded bg-cyan-300 px-1.5 py-0.5 text-[10px] font-black leading-none text-zinc-950">API</span>
-              <span className="min-w-0 truncate text-cyan-50">{PROMO_API_CONFIG.label}</span>
-              <span className="hidden shrink-0 font-mono text-[11px] tracking-normal text-cyan-200/80 lg:inline">{PROMO_API_CONFIG.displayUrl}</span>
-            </a>
             {appMode === 'agent' && <div className="hidden sm:flex items-center gap-1 relative">
               <button
                 ref={historyButtonRef}

@@ -28,6 +28,7 @@ const DEFAULT_BASE_URL = isImportableConfigUrl(RAW_DEFAULT_API_URL)
   ? ''
   : RAW_DEFAULT_API_URL || (DOCKER_DEPLOYMENT && DEFAULT_OPENAI_API_PROXY ? '' : OPENAI_DEFAULT_BASE_URL)
 export const DEFAULT_IMAGES_MODEL = 'gpt-image-2'
+export const DEFAULT_GROK_MODEL = 'grok-imagine-image'
 export const DEFAULT_RESPONSES_MODEL = 'gpt-5.5'
 export const DEFAULT_FAL_BASE_URL = 'https://fal.run'
 export const DEFAULT_FAL_MODEL = 'openai/gpt-image-2'
@@ -302,6 +303,19 @@ export function createDefaultOpenAIProfile(overrides: Partial<ApiProfile> = {}):
     streamPartialImages: DEFAULT_STREAM_PARTIAL_IMAGES,
     ...overrides,
   }
+}
+
+export function createDefaultGrokProfile(overrides: Partial<ApiProfile> = {}): ApiProfile {
+  return createDefaultOpenAIProfile({
+    id: 'grok-imagine',
+    name: 'Grok Imagine',
+    model: DEFAULT_GROK_MODEL,
+    apiMode: 'images',
+    streamImages: false,
+    streamPartialImages: 0,
+    responseFormatB64Json: true,
+    ...overrides,
+  })
 }
 
 export function createDefaultFalProfile(overrides: Partial<ApiProfile> = {}): ApiProfile {
