@@ -80,6 +80,23 @@ function normalizeImageApiPayload(value: unknown): ImageApiResponse {
   return { data: [] }
 }
 
+async function readJsonResponse(response: Response, context: string): Promise<unknown> {
+  const bodyText = await response.text()
+  if (!bodyText.trim()) {
+    const err = new Error(`${context}返回了空响应，无法解析图片结果。常见原因是当前模型或中转渠道不支持本次 Image API 调用方式，或上游生成过程中断；请先用 1 张、1K/2K、快速质量测试，必要时关闭流式或更换模型/渠道。`)
+    ;(err as any).rawResponsePayload = ''
+    throw err
+  }
+
+  try {
+    return JSON.parse(bodyText)
+  } catch {
+    const err = new Error(`${context}返回的内容不是有效 JSON，无法解析图片结果。请检查上游是否返回了空响应、HTML 错误页或非标准流式内容。`)
+    ;(err as any).rawResponsePayload = bodyText
+    throw err
+  }
+}
+
 function createRequestHeaders(profile: ApiProfile): Record<string, string> {
   return {
     Authorization: `Bearer ${profile.apiKey}`,
@@ -680,7 +697,7 @@ async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile, cu
       return parseImagesApiStreamResponse(response, mime, opts.onPartialImage)
     }
 
-    return parseImagesApiResponse(await response.json() as ImageApiResponse, mime, controller.signal)
+    return parseImagesApiResponse(await readJsonResponse(response, 'Images API') as ImageApiResponse, mime, controller.signal)
   } finally {
     clearTimeout(timeoutId)
   }
@@ -879,7 +896,7 @@ async function submitCustomRequest(mapping: CustomProviderSubmitMapping, opts: C
   })
 
   if (!response.ok) throw await createApiResponseError(response)
-  return response.json()
+  return readJsonResponse(response, '自定义服务商提交接口')
 }
 
 async function pollCustomTaskResult(
@@ -917,7 +934,7 @@ async function pollCustomTaskResult(
         throw await createApiResponseError(taskResponse)
       }
 
-      taskPayload = await taskResponse.json()
+      taskPayload = await readJsonResponse(taskResponse, '自定义服务商轮询接口')
     } catch (err) {
       if (!signal?.aborted && isRecoverablePollingError(err)) continue
       throw err
@@ -1076,7 +1093,7 @@ async function callResponsesImageApiSingle(opts: CallApiOptions, profile: ApiPro
       return parseResponsesApiStreamResponse(response, mime, opts.onPartialImage)
     }
 
-    const payload = await response.json() as ResponsesApiResponse
+    const payload = await readJsonResponse(response, 'Responses API') as ResponsesApiResponse
     const imageResults = parseResponsesImageResults(payload, mime)
     const actualParams = mergeActualParams(
       imageResults[0]?.actualParams ?? {},

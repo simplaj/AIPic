@@ -144,6 +144,20 @@ describe('callImageApi', () => {
     expect(body.partial_images).toBe(DEFAULT_SETTINGS.streamPartialImages)
   })
 
+  it('explains empty successful Images API responses instead of exposing Response.json errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    await expect(callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key' },
+      prompt: 'prompt',
+      params: { ...DEFAULT_PARAMS },
+      inputImageDataUrls: [],
+    })).rejects.toThrow('Images API返回了空响应')
+  })
+
   it('preserves explicit Images API streaming opt-out', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
       data: [{ b64_json: 'aW1hZ2U=' }],
