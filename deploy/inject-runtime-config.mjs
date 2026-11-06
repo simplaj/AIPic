@@ -4,7 +4,7 @@ import path from 'node:path'
 const target = process.env.AIPIC_STATIC_DIR || '/app/dist'
 const proxyAvailable = process.env.ENABLE_API_PROXY === 'true'
 const replacements = {
-  __VITE_DEFAULT_API_URL_PLACEHOLDER__: process.env.DEFAULT_API_URL ?? 'https://api.openai.com/v1',
+  __VITE_DEFAULT_API_URL_PLACEHOLDER__: process.env.DEFAULT_API_URL ?? 'https://2api.dev/v1',
   __VITE_API_PROXY_AVAILABLE_PLACEHOLDER__: String(proxyAvailable),
   __VITE_API_PROXY_LOCKED_PLACEHOLDER__: String(proxyAvailable && process.env.LOCK_API_PROXY === 'true'),
   __VITE_DOCKER_DEPLOYMENT_PLACEHOLDER__: 'true',

@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { buildApiUrl } from './devProxy'
+import { createDefaultOpenAIProfile } from './apiProfiles'
 
 describe('buildApiUrl', () => {
+  it.each(['images/generations', 'images/edits', 'responses'])(
+    'routes the default profile to the versioned 2api %s endpoint',
+    (endpoint) => {
+      const profile = createDefaultOpenAIProfile()
+      expect(buildApiUrl(profile.baseUrl, endpoint, null, false)).toBe(`https://2api.dev/v1/${endpoint}`)
+    },
+  )
+
   it('uses the same-origin proxy prefix when API proxy is enabled', () => {
     expect(buildApiUrl('http://api.example.com/v1', 'images/edits', null, true)).toBe(
       '/api-proxy/images/edits',

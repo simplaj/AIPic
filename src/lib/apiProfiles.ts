@@ -21,14 +21,14 @@ import { DEFAULT_IMAGE_TIMEOUT_SECONDS, normalizeImageTimeoutSeconds } from './i
 import { isImportableConfigUrl } from './customProviderConfigUrl'
 import { DEFAULT_FAL_MODEL, DEFAULT_IMAGES_MODEL } from './imageModels'
 
-const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1'
+const AIPIC_DEFAULT_BASE_URL = 'https://2api.dev/v1'
 const RAW_DEFAULT_API_URL = readRuntimeEnv(import.meta.env.VITE_DEFAULT_API_URL)
 const DEFAULT_OPENAI_API_PROXY = isApiProxyAvailable()
 const DOCKER_DEPLOYMENT = readRuntimeEnv(import.meta.env.VITE_DOCKER_DEPLOYMENT) === 'true'
 const DEFAULT_OPENAI_STREAM_IMAGES = false
 const DEFAULT_BASE_URL = isImportableConfigUrl(RAW_DEFAULT_API_URL)
   ? ''
-  : RAW_DEFAULT_API_URL || (DOCKER_DEPLOYMENT && DEFAULT_OPENAI_API_PROXY ? '' : OPENAI_DEFAULT_BASE_URL)
+  : RAW_DEFAULT_API_URL || (DOCKER_DEPLOYMENT && DEFAULT_OPENAI_API_PROXY ? '' : AIPIC_DEFAULT_BASE_URL)
 export { DEFAULT_IMAGES_MODEL, DEFAULT_FAL_MODEL } from './imageModels'
 export const DEFAULT_GROK_MODEL = 'grok-imagine-image'
 export const DEFAULT_RESPONSES_MODEL = 'gpt-6.1-sol'

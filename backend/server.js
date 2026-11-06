@@ -82,7 +82,7 @@ const DEFAULT_IMAGE_MODEL_DEPLOYMENT_CONFIG = {
   name: 'OpenAI',
   modelId: '',
   usesPresetModelId: true,
-  baseUrl: 'https://api.openai.com/v1',
+  baseUrl: 'https://2api.dev/v1',
   builtinPreset: 'gpt-image-2',
   maxRefImages: 16,
   maxOutputSize: '4K',
@@ -95,7 +95,7 @@ const DEFAULT_VIDEO_MODEL_DEPLOYMENT_CONFIG = {
   protocol: 'openai',
   name: 'OpenAI',
   modelId: 'sora-2',
-  baseUrl: 'https://api.openai.com/v1',
+  baseUrl: 'https://2api.dev/v1',
 };
 const DEFAULT_VIDEO_WORKSPACE_CONFIG = {
   maxRefImages: 9,
@@ -231,7 +231,7 @@ function appendProtocolApiPath(protocol, baseUrl, apiPath) {
 }
 
 function resolveFlyreqApiBaseUrl() {
-  return normalizeBaseUrl(getRuntimeEnv().FLYREQ_API_BASE_URL) || 'https://api.openai.com';
+  return normalizeBaseUrl(getRuntimeEnv().FLYREQ_API_BASE_URL) || 'https://2api.dev';
 }
 
 /**
@@ -3874,7 +3874,7 @@ async function handleAipicProxy(req, res, parsedUrl) {
     const env = getRuntimeEnv();
     const baseUrl = normalizeAipicProxyBaseUrl(req.headers['x-aipic-upstream'])
       || normalizeAipicProxyBaseUrl(env.API_PROXY_URL)
-      || 'https://api.openai.com/v1';
+      || 'https://2api.dev/v1';
     const upstreamUrl = new URL(`${baseUrl}/${endpoint}`);
     upstreamUrl.search = parsedUrl.search;
     const connectionHeaders = String(req.headers.connection || '').toLowerCase().split(',').map(name => name.trim());

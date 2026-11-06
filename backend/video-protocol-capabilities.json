@@ -5,7 +5,7 @@
       "label": "New API",
       "hidden": false,
       "constraintSource": "workspace-default",
-      "settings": { "baseUrl": "https://api.openai.com/v1", "presetModelId": "" },
+      "settings": { "baseUrl": "https://2api.dev/v1", "presetModelId": "" },
       "createEndpoint": { "method": "POST", "path": "/v1/video/generations" },
       "parameters": {
         "duration": { "mode": "range", "min": 1, "max": 60, "presets": [6, 10, 12, 15, 20] },
@@ -20,7 +20,7 @@
       "label": "OpenAI Videos (Sora)",
       "hidden": false,
       "constraintSource": "workspace-default",
-      "settings": { "baseUrl": "https://api.openai.com", "presetModelId": "sora-2" },
+      "settings": { "baseUrl": "https://2api.dev", "presetModelId": "sora-2" },
       "createEndpoint": { "method": "POST", "path": "/v1/videos" },
       "parameters": {
         "duration": { "mode": "range", "min": 1, "max": 60, "presets": [4, 8, 12, 16, 20] },

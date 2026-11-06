@@ -1,4 +1,4 @@
-const UPSTREAM_BASE_URL = 'https://api.openai.com/v1'
+const UPSTREAM_BASE_URL = 'https://2api.dev/v1'
 const UPSTREAM_HEADER = 'x-aipic-upstream'
 const MAX_TEXT_BODY_CHARS = 8000
 const STREAM_HEADER = 'x-aipic-proxy-stream'

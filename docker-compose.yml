@@ -1,6 +1,6 @@
 services:
   aipic:
-    image: "${AIPIC_IMAGE:-aipic:0.7.0}"
+    image: "${AIPIC_IMAGE:-aipic:0.7.1}"
     build:
       context: .
       dockerfile: deploy/Dockerfile
@@ -10,8 +10,8 @@ services:
     ports:
       - "${AIPIC_PORT:-8080}:8788"
     environment:
-      DEFAULT_API_URL: "${DEFAULT_API_URL:-https://api.openai.com/v1}"
-      API_PROXY_URL: "${API_PROXY_URL:-https://api.openai.com/v1}"
+      DEFAULT_API_URL: "${DEFAULT_API_URL:-https://2api.dev/v1}"
+      API_PROXY_URL: "${API_PROXY_URL:-https://2api.dev/v1}"
       ENABLE_API_PROXY: "${ENABLE_API_PROXY:-true}"
       LOCK_API_PROXY: "${LOCK_API_PROXY:-true}"
       FLYREQ_TASK_CONCURRENCY: "${FLYREQ_TASK_CONCURRENCY:-4}"

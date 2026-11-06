@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "prefix": "/api-proxy",
-  "target": "http://127.0.0.1:3000",
+  "target": "https://2api.dev/v1",
   "changeOrigin": true,
-  "secure": false
+  "secure": true
 }

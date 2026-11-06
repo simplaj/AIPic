@@ -48,6 +48,22 @@ afterEach(() => {
 })
 
 describe('long image request proxy transport', () => {
+  it.each([
+    { env: {}, upstream: null, expected: 'https://2api.dev/v1/models' },
+    { env: { API_PROXY_URL: 'https://deployment.example/v1' }, upstream: null, expected: 'https://deployment.example/v1/models' },
+    { env: { API_PROXY_URL: 'https://deployment.example/v1' }, upstream: 'https://saved.example/v1', expected: 'https://saved.example/v1/models' },
+  ])('uses the configured upstream without changing saved provider routing: $expected', async ({ env, upstream, expected }) => {
+    const fetchMock = vi.fn(async () => Response.json({ data: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const request = new Request('https://aipic.example/api-proxy/models', {
+      headers: upstream ? { 'x-aipic-upstream': upstream } : {},
+    })
+    const response = await onRequest({ request, env } as Parameters<typeof onRequest>[0])
+    expect(response.status).toBe(200)
+    const [url] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(url.href).toBe(expected)
+  })
+
   it('returns a heartbeat before upstream responds and continues during silence', async () => {
     vi.useFakeTimers()
     const upstream = defer<Response>()

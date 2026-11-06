@@ -6,7 +6,7 @@ AIPic 围绕「选模板 → 编辑画面与参数 → 生成与对比 → 保�
 
 开源、无广告，使用自己的 API 地址、密钥和模型。个人模板与页面历史保存在当前浏览器；Node / Docker 部署另提供服务器任务队列与结果存储。
 
-[在线体验](https://image.simplaj.top/) · [v0.7.0 发布与镜像下载](https://github.com/simplaj/AIPic/releases/tag/v0.7.0) · [版本更新说明](docs/releases/v0.7.0.md) · [快速开始](#快速开始)
+[在线体验](https://pic.2api.dev/) · [v0.7.1 发布与镜像下载](https://github.com/simplaj/AIPic/releases/tag/v0.7.1) · [版本更新说明](docs/releases/v0.7.1.md) · [快速开始](#快速开始)
 
 ## AIPic 的开发贡献
 
@@ -25,7 +25,7 @@ AIPic 由本仓库维护者与贡献者持续设计、实现和发布。我们�
 
 图像调用、历史与多 API 配置的基础来自 GPT Image Playground；后台队列基础来自 FlyReq Image Studio；组件库、skills 与摄影素材保留各自来源和许可。AIPic 的工作包括产品设计、工作流开发、代码适配、系统整合与持续验证，具体归属见文末[来源与许可证](#来源与许可证)。
 
-## v0.7.0 主要能力
+## 主要能力
 
 - 创意工作台：使用 Kumo UI 与 Lucide 图标，参考 Apple 官网的字体层级、整图卡片和简洁控件，统一工作区、设置抽屉、历史和 AI 助手的明暗主题。模板库占满内容区，选中模板后进入创作面板。
 - 商业创作入口：「电商 · 小红书」合并为一个入口，位于 AI Native 前并标记 NEW；库内可查看全部模板，或按电商商品图、小红书推广筛选。AI Native 本身不标记 NEW。
@@ -98,10 +98,10 @@ GPT Image 2.6 系列按模型和通道识别可用参数，包括复杂度、GIF
 
 ## API 配置
 
-应用默认使用 OpenAI 兼容接口，默认 API 地址为：
+应用默认使用 [2api.dev](https://2api.dev/) 的 OpenAI 兼容接口。配置中的完整 Base URL 包含 `/v1`，默认地址为：
 
 ```text
-https://api.openai.com/v1
+https://2api.dev/v1
 ```
 
 用户可以在页面右上角的 API 设置中修改：
@@ -126,7 +126,7 @@ functions/api-proxy/[[path]].ts
 代理规则：
 
 - 前端请求 `/api-proxy/images/generations` 等路径。
-- Pages Function 默认转发到 `https://api.openai.com/v1`。
+- Pages Function 默认转发到 `https://2api.dev/v1`。
 - 私有 Pages 部署可通过环境变量 `API_PROXY_URL=https://your-gateway.example.com/v1` 修改默认代理上游。
 - 请求头 `x-aipic-upstream` 可以覆盖上游地址，但只接受 HTTPS。
 - 代理返回 CORS 头，方便浏览器直接调用。
@@ -153,25 +153,25 @@ Cloudflare Pages 单独部署无法运行此 Node.js / SQLite 后台队列。需
 
 ## Docker 部署
 
-版本 `0.7.0` 使用**单个镜像、单个容器**：Node.js 24 同时提供前端页面、`/api/flyreq/` 后台任务、WebSocket 和 `/api-proxy/` 同源代理。容器内端口为 `8788`，默认映射到宿主机 `8080`；不再需要单独部署 Nginx 或后端容器。
+版本 `0.7.1` 使用**单个镜像、单个容器**：Node.js 24 同时提供前端页面、`/api/flyreq/` 后台任务、WebSocket 和 `/api-proxy/` 同源代理。容器内端口为 `8788`，默认映射到宿主机 `8080`；不再需要单独部署 Nginx 或后端容器。
 
 镜像以普通用户 `node`（UID/GID `1000:1000`）运行。SQLite、生成图片、视频和日志统一写入 `/data`，请始终挂载持久卷。页面历史仍保存在当前浏览器中，服务器结果有独立的自动清理周期。
 
 ### 方式一：下载 Release 镜像包（推荐）
 
-打开 [GitHub Release v0.7.0](https://github.com/simplaj/AIPic/releases/tag/v0.7.0)，下载以下文件。部署机器只需要 Docker Engine 和 Docker Compose，无需安装 Node.js 或克隆源码。
+打开 [GitHub Release v0.7.1](https://github.com/simplaj/AIPic/releases/tag/v0.7.1)，下载以下文件。部署机器只需要 Docker Engine 和 Docker Compose，无需安装 Node.js 或克隆源码。
 
 | 文件 | 用途 |
 | --- | --- |
-| `aipic-0.7.0-linux-amd64.tar.gz` | x86-64 / Intel / AMD 服务器镜像 |
-| `aipic-0.7.0-linux-arm64.tar.gz` | ARM64 / Apple Silicon / ARM 服务器镜像 |
+| `aipic-0.7.1-linux-amd64.tar.gz` | x86-64 / Intel / AMD 服务器镜像 |
+| `aipic-0.7.1-linux-arm64.tar.gz` | ARM64 / Apple Silicon / ARM 服务器镜像 |
 | `docker-compose.yml` | 直接加载发布镜像的部署配置 |
 | `SHA256SUMS` | 发布附件的 SHA-256 校验值 |
 | `release.json` | 版本、源码提交、镜像架构及 registry digest |
 | `validation.json` | 本次发布提交的单测、生产构建与 UI 回归记录 |
-| `aipic-0.7.0-source.tar.gz` | 与本次发布提交一致的完整项目源码 |
+| `aipic-0.7.1-source.tar.gz` | 与本次发布提交一致的完整项目源码 |
 
-两个镜像包选择一个即可，加载后均使用标签 `aipic:0.7.0`。`uname -m` 显示 `x86_64` 时选择 amd64；显示 `aarch64` 或 `arm64` 时选择 arm64。
+两个镜像包选择一个即可，加载后均使用标签 `aipic:0.7.1`。`uname -m` 显示 `x86_64` 时选择 amd64；显示 `aarch64` 或 `arm64` 时选择 arm64。
 
 例如在 Linux x86-64 服务器首次安装：
 
@@ -181,25 +181,25 @@ cd aipic-deploy
 
 # ARM64 机器把 amd64 改为 arm64。
 AIPIC_ARCH=amd64
-AIPIC_RELEASE_URL=https://github.com/simplaj/AIPic/releases/download/v0.7.0
-for file in "aipic-0.7.0-linux-${AIPIC_ARCH}.tar.gz" docker-compose.yml release.json SHA256SUMS; do
+AIPIC_RELEASE_URL=https://github.com/simplaj/AIPic/releases/download/v0.7.1
+for file in "aipic-0.7.1-linux-${AIPIC_ARCH}.tar.gz" docker-compose.yml release.json SHA256SUMS; do
   curl -fL --retry 3 "$AIPIC_RELEASE_URL/$file" -o "$file" || exit 1
 done
 
 # 只核对本次下载的附件，不要求同时下载另一种架构。
-awk -v image="aipic-0.7.0-linux-${AIPIC_ARCH}.tar.gz" \
+awk -v image="aipic-0.7.1-linux-${AIPIC_ARCH}.tar.gz" \
   '$2 == image || $2 == "docker-compose.yml" || $2 == "release.json"' \
   SHA256SUMS > downloaded.sha256
 sha256sum -c downloaded.sha256 || exit 1
 
 # 上述校验全部通过后加载并启动。
-docker load -i "aipic-0.7.0-linux-${AIPIC_ARCH}.tar.gz" || exit 1
+docker load -i "aipic-0.7.1-linux-${AIPIC_ARCH}.tar.gz" || exit 1
 docker compose up -d --no-build
 ```
 
 macOS 将校验命令替换为 `shasum -a 256 -c downloaded.sha256`。需要全部附件时，可下载所有 Release 附件后执行 `sha256sum -c SHA256SUMS`。
 
-访问 `http://服务器IP:8080/`，打开右上角 **API 设置**，填写 API 地址、API Key 和服务商支持的模型 ID。镜像包不需要登录镜像仓库；发布包中的 Compose 文件没有源码构建步骤，默认使用刚加载的 `aipic:0.7.0`。
+访问 `http://服务器IP:8080/`，打开右上角 **API 设置**，填写 API 地址、API Key 和服务商支持的模型 ID。镜像包不需要登录镜像仓库；发布包中的 Compose 文件没有源码构建步骤，默认使用刚加载的 `aipic:0.7.1`。
 
 Compose 只启动 `aipic` 一个服务，并创建项目范围的 `aipic-data` 命名卷。保留此部署目录供后续升级使用；常用管理命令：
 
@@ -220,17 +220,17 @@ docker run -d \
   --restart unless-stopped \
   -p 8080:8788 \
   -v aipic-data:/data \
-  aipic:0.7.0
+  aipic:0.7.1
 ```
 
 Compose 和 `docker run` 是两种替代部署方式，不要同时启动同名容器。Compose 默认卷名带项目名前缀；从一种方式切换到另一种时，需要明确挂载原有卷。
 
 ### 方式二：直接拉取 GHCR 多架构镜像
 
-镜像地址为 `ghcr.io/simplaj/aipic:0.7.0`，包含 `linux/amd64` 和 `linux/arm64`，Docker 会按主机架构选择。下载 Release 中的 `docker-compose.yml` 后，在同一部署目录创建或修改 `.env`：
+镜像地址为 `ghcr.io/simplaj/aipic:0.7.1`，包含 `linux/amd64` 和 `linux/arm64`，Docker 会按主机架构选择。下载 Release 中的 `docker-compose.yml` 后，在同一部署目录创建或修改 `.env`：
 
 ```dotenv
-AIPIC_IMAGE=ghcr.io/simplaj/aipic:0.7.0
+AIPIC_IMAGE=ghcr.io/simplaj/aipic:0.7.1
 AIPIC_PORT=8080
 ```
 
@@ -247,11 +247,11 @@ GHCR 是否允许匿名拉取取决于包的可见性。如果收到权限错误
 printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 ```
 
-生产部署建议固定版本 `0.7.0`。如需固定到不可变内容，将 `release.json` 的 `registryImage` 去掉版本标签，再与 `registryDigest` 用 `@` 拼接，写入 `.env` 的 `AIPIC_IMAGE`。`latest` 和 `0.7` 是会随新版本更新的别名。
+生产部署建议固定版本 `0.7.1`。如需固定到不可变内容，将 `release.json` 的 `registryImage` 去掉版本标签，再与 `registryDigest` 用 `@` 拼接，写入 `.env` 的 `AIPIC_IMAGE`。`latest` 和 `0.7` 是会随新版本更新的别名。
 
 ### 方式三：从源码使用 Docker Compose
 
-克隆仓库或解压 Release 的 `aipic-0.7.0-source.tar.gz`，进入包含 `docker-compose.yml` 的源码目录执行：
+克隆仓库或解压 Release 的 `aipic-0.7.1-source.tar.gz`，进入包含 `docker-compose.yml` 的源码目录执行：
 
 ```bash
 docker compose up -d --build
@@ -264,7 +264,7 @@ docker compose up -d --build
 构建当前机器架构：
 
 ```bash
-docker build -f deploy/Dockerfile -t aipic:0.7.0 .
+docker build -f deploy/Dockerfile -t aipic:0.7.1 .
 ```
 
 分别构建和导出两种架构（Docker Buildx 及跨架构构建支持需已就绪）：
@@ -272,12 +272,12 @@ docker build -f deploy/Dockerfile -t aipic:0.7.0 .
 ```bash
 mkdir -p release
 docker buildx build --platform linux/amd64 --load \
-  -f deploy/Dockerfile -t aipic:0.7.0 .
-docker save aipic:0.7.0 | gzip > release/aipic-0.7.0-linux-amd64.tar.gz
+  -f deploy/Dockerfile -t aipic:0.7.1 .
+docker save aipic:0.7.1 | gzip > release/aipic-0.7.1-linux-amd64.tar.gz
 
 docker buildx build --platform linux/arm64 --load \
-  -f deploy/Dockerfile -t aipic:0.7.0 .
-docker save aipic:0.7.0 | gzip > release/aipic-0.7.0-linux-arm64.tar.gz
+  -f deploy/Dockerfile -t aipic:0.7.1 .
+docker save aipic:0.7.1 | gzip > release/aipic-0.7.1-linux-arm64.tar.gz
 ```
 
 每次导出紧跟对应架构的构建，因为两个构建使用相同标签。构建包括前端编译及后端原生依赖安装，不执行测试。`.dockerignore` 只允许项目源码进入上下文，排除 `.env*`、本地数据库、生成图片、依赖缓存和发布产物。
@@ -288,10 +288,10 @@ docker save aipic:0.7.0 | gzip > release/aipic-0.7.0-linux-arm64.tar.gz
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `AIPIC_IMAGE` | `aipic:0.7.0` | Compose 使用的镜像标签 |
+| `AIPIC_IMAGE` | `aipic:0.7.1` | Compose 使用的镜像标签 |
 | `AIPIC_PORT` | `8080` | Compose 映射到宿主机的端口 |
-| `DEFAULT_API_URL` | `https://api.openai.com/v1` | 前端 API 设置中的初始地址；不覆盖浏览器已保存配置 |
-| `API_PROXY_URL` | `https://api.openai.com/v1` | `/api-proxy/` 的后备上游；页面选择的上游优先 |
+| `DEFAULT_API_URL` | `https://2api.dev/v1` | 前端 API 设置中的初始地址；不覆盖浏览器已保存配置 |
+| `API_PROXY_URL` | `https://2api.dev/v1` | `/api-proxy/` 的后备上游；页面选择的上游优先 |
 | `ENABLE_API_PROXY` | `true` | 是否开放 `/api-proxy/` 同源代理；不影响后台 Images 队列 |
 | `LOCK_API_PROXY` | `true` | 启用代理时，是否锁定前端的代理开关 |
 | `FLYREQ_TASK_CONCURRENCY` | `4` | 后台生图并发数 |
@@ -334,7 +334,7 @@ docker compose up -d --no-build
 
 ## Cloudflare Pages 部署
 
-当前线上地址为 **[https://image.simplaj.top/](https://image.simplaj.top/)**，由现有 Cloudflare Pages 项目 `aipic` 连接 GitHub 仓库 `simplaj/AIPic` 自动发布。日常更新只需推送 `main`；Cloudflare 从对应提交重新构建前端和 Pages Functions，再更新生产域名。Docker Release 则由 `v*` 标签触发，两条发布流程独立。
+当前线上地址为 **[https://pic.2api.dev/](https://pic.2api.dev/)**，由现有 Cloudflare Pages 项目 `aipic` 连接 GitHub 仓库 `simplaj/AIPic` 自动发布。日常更新只需推送 `main`；Cloudflare 从对应提交重新构建前端和 Pages Functions，再更新生产域名。Docker Release 则由 `v*` 标签触发，两条发布流程独立。
 
 Cloudflare Pages 提供前端和 `/api-proxy/` 保活代理，**不包含 FlyReq 后台任务、SQLite、服务器持久化队列或图片目录**。需要提交后关闭页面仍由服务器处理任务时，请使用上面的 Node / Docker 部署。
 
@@ -350,7 +350,7 @@ Cloudflare Pages 提供前端和 `/api-proxy/` 保活代理，**不包含 FlyReq
 | 构建命令 | `npm run build` |
 | 构建输出目录 | `dist` |
 | Node.js 构建版本 | 构建变量 `NODE_VERSION=24` |
-| 自定义域名 | `image.simplaj.top` |
+| 自定义域名 | `pic.2api.dev` |
 
 `wrangler.jsonc` 已配置项目名 `aipic` 和 `pages_build_output_dir: "./dist"`。Pages 构建需要保留仓库根目录的 `functions/`，Cloudflare 会把其中的 `/api-proxy/` 一起部署；只把 `dist` 当普通静态文件上传不能替代完整的 Pages Functions 发布。
 
@@ -362,7 +362,7 @@ Cloudflare Pages 提供前端和 `/api-proxy/` 保活代理，**不包含 FlyReq
 | `VITE_API_PROXY_AVAILABLE` | `true`，仓库 `.env.production` 已提供默认值 |
 | `VITE_API_PROXY_LOCKED` | `false`，允许用户在页面设置切换代理 |
 | `VITE_DOCKER_DEPLOYMENT` | 不设置，或 `false` |
-| `VITE_DEFAULT_API_URL` | 可选，填写页面默认上游 HTTPS URL；默认使用 OpenAI |
+| `VITE_DEFAULT_API_URL` | 可选，填写页面默认上游 HTTPS URL；默认使用 `https://2api.dev/v1` |
 
 不要在 Pages 使用 `npm run build:backend`，否则前端会调用该部署不存在的 `/api/flyreq/`。Cloudflare 与普通静态托管不同，它已有 `/api-proxy/` Function，因此不应关闭 `VITE_API_PROXY_AVAILABLE`。
 
@@ -378,9 +378,9 @@ git push origin main
 
 在 Cloudflare 的 **Deployments** 中查看 Production 部署，确认分支为 `main`、源码 commit 与本次推送一致且状态为 **Success**。只有推送成功还不能说明 Cloudflare 已构建成功；若构建失败，检查该次部署日志，旧生产版本通常继续服务。
 
-Docker 镜像的发布入口为 `.github/workflows/docker.yml`：`v0.7.0` 标签必须指向 `package.json` 和 `package-lock.json` 都为 `0.7.0` 的提交。工作流先运行单测、生产构建与浏览器回归，全部通过后分别构建 amd64、arm64；核对镜像架构、版本和源码提交，生成源码包、验证记录与 `SHA256SUMS`，附件齐全后才公开 Release。浏览器检查拦截模型请求，不调用付费模型；发布流程不启动应用容器，容器运行验证另行记录。
+Docker 镜像的发布入口为 `.github/workflows/docker.yml`：`v0.7.1` 标签必须指向 `package.json` 和 `package-lock.json` 都为 `0.7.1` 的提交。工作流先运行单测、生产构建与浏览器回归，全部通过后分别构建 amd64、arm64；核对镜像架构、版本和源码提交，生成源码包、验证记录与 `SHA256SUMS`，附件齐全后才公开 Release。浏览器检查拦截模型请求，不调用付费模型；发布流程不启动应用容器，容器运行验证另行记录。
 
-仓库保留的 **Optional GitHub Pages Deployment** 工作流仅支持手动触发，不参与 `image.simplaj.top` 的发布，也不会在推送标签时创建额外站点。
+仓库保留的 **Optional GitHub Pages Deployment** 工作流仅支持手动触发，不参与 `pic.2api.dev` 的发布，也不会在推送标签时创建额外站点。
 
 ### dev 分支预览
 
@@ -419,7 +419,7 @@ cp dev-proxy.config.example.json dev-proxy.config.json
 ```json
 {
   "prefix": "/api-proxy",
-  "target": "https://api.openai.com/v1"
+  "target": "https://2api.dev/v1"
 }
 ```
 

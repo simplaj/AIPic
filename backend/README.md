@@ -6,7 +6,7 @@ The original backend's SQLite task queue, task-item results, in-memory API keys,
 
 ## AIPic adaptations
 
-- Preserve `/api-proxy/*` for existing Responses and custom request modes, forwarding raw multipart uploads and upstream response streams without a heartbeat envelope. The `x-aipic-upstream` header selects the upstream; otherwise `API_PROXY_URL` or the neutral OpenAI API default is used.
+- Preserve `/api-proxy/*` for existing Responses and custom request modes, forwarding raw multipart uploads and upstream response streams without a heartbeat envelope. The `x-aipic-upstream` header selects the upstream; otherwise `API_PROXY_URL` or the AIPic default `https://2api.dev/v1` is used.
 - Serve AIPic's Vite `dist` directory directly with Node. Next.js is not needed. The default listen address is `127.0.0.1:8788`.
 - Match the original AIPic edit upload contract: reference files use repeated `image[]` multipart fields with one-based filenames. Mask edits retain the original client PNG conversion for the first reference and mask; ordinary reference bytes are preserved.
 - Preserve exact frontend pixel sizes such as `3200x2400`; pass compression, moderation, response format, and streaming-preview preferences. Forward editing masks as multipart `mask`; reference-image and mask bytes remain in memory rather than task-request SQLite records.
