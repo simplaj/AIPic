@@ -1,4 +1,4 @@
-/** Build-time release packaging only. This script never starts the application. */
+/** Release validation records and packaging. This script never starts the application. */
 import { createReadStream, createWriteStream } from 'node:fs';
 import { appendFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -56,7 +56,29 @@ if (mode === 'prepare') {
     return records;
   };
 
-  if (mode === 'image') {
+  const readValidation = async () => {
+    const validation = await json(join(dir, 'validation.json'));
+    if (validation.version !== version || validation.commit !== commit || validation.productionBuild !== true
+      || !(validation.unitTestsPassed > 0) || !(validation.uiChecksPassed > 0)
+      || validation.pageErrors !== 0 || validation.liveModelRequests !== 0) fail('Missing or mismatched release validation');
+    return validation;
+  };
+
+  if (mode === 'validate') {
+    const unit = await json(process.argv[3]);
+    const ui = await json(process.argv[4]);
+    const build = await json('dist/version.json');
+    if (!unit.success || unit.numFailedTests !== 0 || unit.numPassedTests <= 0 || unit.numPassedTests !== unit.numTotalTests) fail('Unit tests did not all pass');
+    if (!(ui.passed > 0) || ui.passed !== ui.checks?.length || ui.pageErrors?.length !== 0 || ui.liveModelRequests !== 0) fail('UI regression checks did not all pass');
+    if (build.version !== version || !build.buildId?.startsWith(`${version}-`)) fail('Production frontend version mismatch');
+    await saveJson(join(dir, 'validation.json'), {
+      version, commit, productionBuild: true, validatedBuildId: build.buildId,
+      unitTestFiles: unit.testResults.length, unitTestsPassed: unit.numPassedTests,
+      uiChecksPassed: ui.passed, pageErrors: 0, liveModelRequests: 0,
+      scope: 'Unit tests and production frontend UI regression with intercepted model requests; application containers are not started by this workflow.',
+    });
+    console.log(`Validated ${unit.numPassedTests} unit tests and ${ui.passed} UI checks for ${commit}`);
+  } else if (mode === 'image') {
     const arch = required('RELEASE_ARCH');
     const digest = required('RELEASE_DIGEST');
     if (!['amd64', 'arm64'].includes(arch) || !digestPattern.test(digest)) fail('Invalid image architecture or digest');
@@ -83,6 +105,8 @@ if (mode === 'prepare') {
     for (const record of await readImages()) console.log(`${image}@${record.digest}`);
   } else if (mode === 'assemble') {
     const images = await readImages();
+    const validation = await readValidation();
+    const releaseNotes = await readFile(`docs/releases/${tag}.md`, 'utf8');
     const manifest = await json(process.argv[3]);
     if (manifest.manifests?.length !== 2) fail('Registry manifest must contain exactly two architectures');
     for (const record of images) {
@@ -106,11 +130,11 @@ if (mode === 'prepare') {
     if (!/^    image:.*$/m.test(compose)) fail('Cannot find the source Compose image');
     compose = compose.replace(/^    image:.*$/m, `    image: "\${AIPIC_IMAGE:-aipic:${version}}"`);
     await writeFile(join(dir, 'docker-compose.yml'), `${compose}\n`);
-    await writeFile(join(dir, 'README.md'), `# AIPic ${version}\n\n版本：\`${tag}\`；源码提交：\`${commit}\`。\n\n下载 \`docker-compose.yml\` 和与服务器匹配的镜像包。Intel/AMD 使用 amd64；ARM/Apple Silicon 使用 arm64。\n\n\`\`\`sh\ndocker load -i aipic-${version}-linux-amd64.tar.gz\ndocker compose up -d\n\`\`\`\n\nARM64 请将文件名中的 amd64 换为 arm64。两个镜像包均加载为 \`aipic:${version}\`。打开 http://localhost:8080/，在页面配置 API 地址、密钥和模型。数据保存在 \`aipic-data\` 卷中。\n\n也可直接使用 GHCR 多架构镜像：\n\n\`\`\`sh\nAIPIC_IMAGE=${image}:${version} docker compose up -d\n\`\`\`\n\n固定镜像摘要：\`${image}@${registryDigest}\`。源码包为 \`${sourceName}\`。下载全部附件后可执行 \`sha256sum -c SHA256SUMS\` 核对文件完整性。\n\n生产站点 https://image.simplaj.top/ 由 Cloudflare Pages 从 main 自动部署，保留同源 /api-proxy；Cloudflare Pages 不运行 Node 后台任务队列。需要持久化后台队列时使用本 Docker 部署。可选 GitHub Pages 只提供静态前端，需要支持浏览器 CORS 的上游 API。\n\n本发布流程仅构建、打包和核对产物元数据，没有运行测试或启动应用容器。\n`);
+    await writeFile(join(dir, 'README.md'), `# AIPic ${version}\n\n版本：\`${tag}\`；源码提交：\`${commit}\`。\n\n${releaseNotes.trim()}\n\n## 安装与校验\n\n下载 \`docker-compose.yml\` 和与服务器匹配的镜像包。Intel/AMD 使用 amd64；ARM/Apple Silicon 使用 arm64。\n\n\`\`\`sh\ndocker load -i aipic-${version}-linux-amd64.tar.gz\ndocker compose up -d\n\`\`\`\n\nARM64 请将文件名中的 amd64 换为 arm64。两个镜像包均加载为 \`aipic:${version}\`。打开 http://localhost:8080/，在页面配置 API 地址、密钥和模型。数据保存在 \`aipic-data\` 卷中。\n\n也可直接使用 GHCR 多架构镜像：\n\n\`\`\`sh\nAIPIC_IMAGE=${image}:${version} docker compose up -d\n\`\`\`\n\n固定镜像摘要：\`${image}@${registryDigest}\`。源码包为 \`${sourceName}\`。下载全部附件后可执行 \`sha256sum -c SHA256SUMS\` 核对文件完整性。\n\n生产站点 https://image.simplaj.top/ 由 Cloudflare Pages 从 main 自动部署，保留同源 /api-proxy；Cloudflare Pages 不运行 Node 后台任务队列。需要持久化后台队列时使用本 Docker 部署。可选 GitHub Pages 只提供静态前端，需要支持浏览器 CORS 的上游 API。\n\n## 发布验证\n\n本次提交通过 ${validation.unitTestsPassed} 项单测、生产构建和 ${validation.uiChecksPassed} 项浏览器检查，浏览器运行错误为 0，真实模型调用为 0。详见 \`validation.json\`。镜像归档与 registry 的配置摘要、两种架构、版本和源码提交均经核对；此发布工作流没有启动应用容器。\n`);
     for (const arch of ['amd64', 'arm64']) await rm(join(dir, `image-${arch}.json`));
     const files = [];
     for (const name of (await readdir(dir)).sort()) {
-      if (!/^(aipic-[\d.]+-(linux-(amd64|arm64)|source)\.tar\.gz|docker-compose\.yml|README\.md)$/.test(name)) fail(`Unexpected release asset: ${name}`);
+      if (!/^(aipic-[\d.]+-(linux-(amd64|arm64)|source)\.tar\.gz|docker-compose\.yml|README\.md|validation\.json)$/.test(name)) fail(`Unexpected release asset: ${name}`);
       files.push({ name, bytes: (await stat(join(dir, name))).size, sha256: await hashFile(join(dir, name)) });
     }
     await saveJson(join(dir, 'release.json'), {
@@ -118,7 +142,7 @@ if (mode === 'prepare') {
       platforms: images.map((record) => record.platform), images,
       source: { archive: sourceName, commit },
       workflowRun: `${required('GITHUB_SERVER_URL')}/${required('GITHUB_REPOSITORY')}/actions/runs/${required('GITHUB_RUN_ID')}`,
-      testsRun: false, containersStarted: false, files,
+      testsRun: true, validation, containersStarted: false, files,
     });
     const sums = [];
     for (const name of (await readdir(dir)).sort()) sums.push(`${await hashFile(join(dir, name))}  ${name}`);

@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "verifiedOn": "2026-11-06",
+  "purpose": "Reference data only; upstream files are verbatim, not installed or executed. Runtime AIPic adaptations live in src/lib/commercePresets.ts.",
+  "verification": "Pinned GitHub commit tree entries and Contents API bytes; Git blob SHA-1 and SHA-256 verified before copying.",
+  "sources": [
+    {
+      "repository": "xianyu110/ecommerce-image-skills",
+      "commit": "f4566fdc812584425728862ad8e08c90883d81ee",
+      "commitDate": "2026-10-08T11:38:18Z",
+      "localDirectory": "templates/skills/xianyu110-ecommerce-image-skills",
+      "license": "MIT",
+      "copyright": "Copyright (c) 2026 xianyu110",
+      "url": "https://github.com/xianyu110/ecommerce-image-skills",
+      "files": [
+        {
+          "upstreamPath": "LICENSE",
+          "localPath": "templates/skills/xianyu110-ecommerce-image-skills/LICENSE",
+          "url": "https://github.com/xianyu110/ecommerce-image-skills/blob/f4566fdc812584425728862ad8e08c90883d81ee/LICENSE",
+          "gitBlobSha": "3d00c6cf659771e8352b90179b0a3c2ca899e002",
+          "sha256": "afb520f330a5123b6e276ecfa42e737f342fde64f29a7d60206c90a0d0e085e2",
+          "bytes": 1066
+        },
+        {
+          "upstreamPath": "skills/amazon-white-background/SKILL.md",
+          "localPath": "templates/skills/xianyu110-ecommerce-image-skills/skills/amazon-white-background/SKILL.md",
+          "url": "https://github.com/xianyu110/ecommerce-image-skills/blob/f4566fdc812584425728862ad8e08c90883d81ee/skills/amazon-white-background/SKILL.md",
+          "gitBlobSha": "c927afbc42a1f368fbb093c1d8bfba5780d34c5b",
+          "sha256": "e48de25e0d72a42a68af7a06c86c96cde470233a3b9a9a16aa6bde8427359c62",
+          "bytes": 6884
+        },
+        {
+          "upstreamPath": "skills/lifestyle-scene/SKILL.md",
+          "localPath": "templates/skills/xianyu110-ecommerce-image-skills/skills/lifestyle-scene/SKILL.md",
+          "url": "https://github.com/xianyu110/ecommerce-image-skills/blob/f4566fdc812584425728862ad8e08c90883d81ee/skills/lifestyle-scene/SKILL.md",
+          "gitBlobSha": "a5ea74fc5d951395fb6fee954aea957417f9cfbc",
+          "sha256": "f7d778dd1f5f2873682354378dc0d0acdcf67dbf0a26b80fbb692d4bc5945e08",
+          "bytes": 5917
+        },
+        {
+          "upstreamPath": "skills/xiaohongshu-cover/SKILL.md",
+          "localPath": "templates/skills/xianyu110-ecommerce-image-skills/skills/xiaohongshu-cover/SKILL.md",
+          "url": "https://github.com/xianyu110/ecommerce-image-skills/blob/f4566fdc812584425728862ad8e08c90883d81ee/skills/xiaohongshu-cover/SKILL.md",
+          "gitBlobSha": "101ce693da88d89b8d20cd2551affad761ca5c23",
+          "sha256": "a26fe51236f968db56fbe4e55a2cb07ac4eaf714b66e9186f8a4c7d4062455f5",
+          "bytes": 5706
+        }
+      ]
+    },
+    {
+      "repository": "JimLiu/baoyu-skills",
+      "commit": "5792c7dc8d09a28d6969e8970166c5eb090ce6ad",
+      "commitDate": "2026-11-02T19:25:27Z",
+      "localDirectory": "templates/skills/baoyu-skills",
+      "license": "MIT",
+      "copyright": "Copyright (c) 2026 Jim Liu",
+      "url": "https://github.com/JimLiu/baoyu-skills",
+      "files": [
+        {
+          "upstreamPath": "LICENSE",
+          "localPath": "templates/skills/baoyu-skills/LICENSE",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/LICENSE",
+          "gitBlobSha": "9f2cc0d74570c5841f02b639593d12a70dc7dc65",
+          "sha256": "601839401f6ce68b7a8aec0f7ba247ab8ef0848113378220bec4b2615cc84ee7",
+          "bytes": 1064
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/SKILL.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/SKILL.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/SKILL.md",
+          "gitBlobSha": "e51d4e9c49668be54d896d0e1cb37026e333231f",
+          "sha256": "03cf6ace98316c8d2caaaa6209b4ec8e5c6656f2f8075cdf1367dce891c5202f",
+          "bytes": 23370
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/references/presets/notion.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/references/presets/notion.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/references/presets/notion.md",
+          "gitBlobSha": "44c5d4a91efa3a77f620c3b3fe0f39745da01be8",
+          "sha256": "83a83078d76567677827d647e8516bde48ff8efa30aaa61a8a45db970d83798e",
+          "bytes": 1591
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/references/elements/canvas.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/references/elements/canvas.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/references/elements/canvas.md",
+          "gitBlobSha": "20262f50f1c0a5eb4a0b631954cd4f01a2a90022",
+          "sha256": "4af085d36797c2943b59d7747fbf1d3c2c18102995fcd67b9a5a853e5b9f04d7",
+          "bytes": 3727
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/references/elements/typography.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/references/elements/typography.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/references/elements/typography.md",
+          "gitBlobSha": "6f5e369fc806a95266d23017b8b214c06b81faae",
+          "sha256": "7b7fd06c6efd635ba017a1495f73b094b1abdf4a7d9635b35f964f596b60b3d2",
+          "bytes": 3258
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/references/elements/decorations.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/references/elements/decorations.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/references/elements/decorations.md",
+          "gitBlobSha": "f4fc36ab6c6f248bdb8bafba70580d916c9c2c0c",
+          "sha256": "f85ba1914a9113f0ec81f920a7cf39307ba322b1458d3eda786c6c29d3c42efb",
+          "bytes": 5049
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/references/elements/image-effects.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/references/elements/image-effects.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/references/elements/image-effects.md",
+          "gitBlobSha": "b5b8244232a7a7f74ffe14173839606ff4c55960",
+          "sha256": "27833f3c7415f152dd50578a7ce7e2b0bcce98afe216e9967b993a1e04da9174",
+          "bytes": 2990
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/references/style-layout-matrix.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/references/style-layout-matrix.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/references/style-layout-matrix.md",
+          "gitBlobSha": "bbe7aeb2c1971b87e9af71d682a585301bf8e4e9",
+          "sha256": "285a6e14ad8aa4cda90e962de360743aa44affe3d86821328e8aa1a3c3307bad",
+          "bytes": 1315
+        },
+        {
+          "upstreamPath": "skills/baoyu-xhs-images/references/workflows/prompt-assembly.md",
+          "localPath": "templates/skills/baoyu-skills/skills/baoyu-xhs-images/references/workflows/prompt-assembly.md",
+          "url": "https://github.com/JimLiu/baoyu-skills/blob/5792c7dc8d09a28d6969e8970166c5eb090ce6ad/skills/baoyu-xhs-images/references/workflows/prompt-assembly.md",
+          "gitBlobSha": "1e275d5cac5e9dea7bde798dd9ea3e292feb020a",
+          "sha256": "c2a8f59650f132f0cee440b3efc7e5868051725283613441fffa82bf6e88d371",
+          "bytes": 10328
+        }
+      ]
+    }
+  ]
+}

@@ -1,26 +1,119 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, PointerEvent, SVGProps, WheelEvent as ReactWheelEvent } from 'react'
+import { Input, InputArea } from '@cloudflare/kumo/components/input'
+import { Badge } from '@cloudflare/kumo/components/badge'
+import { Switch } from '@cloudflare/kumo/components/switch'
+import {
+  ArrowRight,
+  ArrowUpRight,
+  ArrowDownToLine,
+  Check,
+  ChevronDown,
+  CircleHelp,
+  ChevronRight,
+  Frame,
+  Grid2X2,
+  History,
+  ImagePlus,
+  Layers,
+  Menu,
+  MessageSquare,
+  Minus,
+  Plus,
+  Search,
+  Settings2,
+  ShoppingBag,
+  SlidersHorizontal,
+  Sparkles,
+  WandSparkles,
+  X,
+  ScanFace,
+  Scissors,
+  Focus,
+  RotateCcw,
+  Heart,
+  SquarePen,
+  BookOpen,
+  Trash2,
+} from 'lucide-react'
+import { StudioButton, StudioSheet, StudioSelect, StudioTabs } from './studio/StudioPrimitives'
+import TemplateArtwork from './studio/TemplateArtwork'
+import StudioGuide, { useStudioGuide } from './studio/StudioGuide'
+import TemplateEditor from './studio/TemplateEditor'
+import { isUserTemplate, useUserTemplates, USER_TEMPLATES_KEY, type UserTemplate } from '../lib/userTemplates'
+import { downloadImageIds } from '../lib/downloadImages'
+import { DEFAULT_PARAMS } from '../types'
+import type { ComponentType, CSSProperties, PointerEvent, SVGProps, WheelEvent as ReactWheelEvent } from 'react'
 import { addImageFromFile, ensureImageCached, submitTask, useStore } from '../store'
 import type { TaskParams, TaskRecord } from '../types'
 import { getActiveApiProfile, validateApiProfile } from '../lib/apiProfiles'
+import { supportsExtendedQuality, supportsGptImage26Params } from '../lib/imageModels'
 import { calculateImageSize, normalizeImageSize, type SizeTier } from '../lib/size'
-import { editorialRetouchPresets } from '../lib/editorialRetouchPresets'
+import {
+  retouchTemplates as builtInRetouchTemplates,
+  type RetouchTemplate,
+  type RetouchCategoryId,
+  type RetouchTemplateId,
+  type RetouchStrengthId,
+  type RetouchTargetId,
+  type RetouchPreviewMode,
+  type RetouchOutputSizeId,
+  type RetouchGenerationMode,
+} from '../lib/retouchPresets'
 import SizePickerModal from './SizePickerModal'
-import { CloseIcon, EditIcon, HistoryIcon, PhotoIcon, RefreshIcon, SettingsIcon, WrenchIcon } from './icons'
+import { EditIcon, HistoryIcon, PhotoIcon, RefreshIcon, SettingsIcon, WrenchIcon } from './icons'
 
 type StudioSymbolName = 'sparkles' | 'compare' | 'expand' | 'arrow' | 'collage' | 'panels' | 'minimal'
 
 /** 共享细线图标让工作台工具和预设保持同一视觉语言。 */
 function StudioSymbol({ name, ...props }: SVGProps<SVGSVGElement> & { name: StudioSymbolName }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-      {name === 'sparkles' && <><path d="m12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3L12 3Z" /><path d="M20 3v4m-2-2h4" /></>}
-      {name === 'compare' && <><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M12 4v16M6 15l3-3 3 2m0-2 3-3 3 3" /></>}
-      {name === 'expand' && <><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 3l6 6m12-6-6 6M3 21l6-6m12 6-6-6" /></>}
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      {name === 'sparkles' && (
+        <>
+          <path d="m12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3L12 3Z" />
+          <path d="M20 3v4m-2-2h4" />
+        </>
+      )}
+      {name === 'compare' && (
+        <>
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <path d="M12 4v16M6 15l3-3 3 2m0-2 3-3 3 3" />
+        </>
+      )}
+      {name === 'expand' && (
+        <>
+          <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 3l6 6m12-6-6 6M3 21l6-6m12 6-6-6" />
+        </>
+      )}
       {name === 'arrow' && <path d="M5 12h14m-6-6 6 6-6 6" />}
-      {name === 'collage' && <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m4 14 4-2 3 2 4-3 5 2M8 9h5m2 8h2" /></>}
-      {name === 'panels' && <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M4 12h16m-12 5h3m2-2h3M8 7h8" /></>}
-      {name === 'minimal' && <><rect x="4" y="3" width="16" height="18" rx="2" /><rect x="10" y="8" width="5" height="4" rx=".5" /><path d="M10 15h5" /></>}
+      {name === 'collage' && (
+        <>
+          <rect x="4" y="3" width="16" height="18" rx="2" />
+          <path d="m4 14 4-2 3 2 4-3 5 2M8 9h5m2 8h2" />
+        </>
+      )}
+      {name === 'panels' && (
+        <>
+          <rect x="4" y="3" width="16" height="18" rx="2" />
+          <path d="M4 12h16m-12 5h3m2-2h3M8 7h8" />
+        </>
+      )}
+      {name === 'minimal' && (
+        <>
+          <rect x="4" y="3" width="16" height="18" rx="2" />
+          <rect x="10" y="8" width="5" height="4" rx=".5" />
+          <path d="M10 15h5" />
+        </>
+      )}
     </svg>
   )
 }
@@ -30,42 +123,6 @@ function NativeIcon(props: SVGProps<SVGSVGElement>) {
   return <StudioSymbol {...props} name="sparkles" />
 }
 
-type RetouchCategoryId =
-  | 'aiColor'
-  | 'tone'
-  | 'local'
-  | 'portrait'
-  | 'image'
-  | 'clothes'
-  | 'postColor'
-  | 'crop'
-  | 'aiNative'
-  | 'body'
-  | 'slim'
-  | 'skin'
-  | 'background'
-  | 'global'
-  | 'portraitColor'
-type RetouchTemplateId = string
-type RetouchStrengthId = 'light' | 'standard' | 'strong' | 'max'
-type RetouchTargetId = 'auto' | 'female' | 'male' | 'child' | 'product'
-type RetouchPreviewMode = 'empty' | 'current' | 'history'
-type RetouchOutputSizeId = 'auto' | 'custom' | SizeTier
-type RetouchGenerationMode = 'text' | 'edit'
-
-type RetouchTemplate = {
-  id: RetouchTemplateId
-  category: RetouchCategoryId
-  group?: string
-  title: string
-  scenario: string
-  prompt: string
-  params: Partial<TaskParams>
-  composition?: 'poster'
-}
-
-const highParams: Partial<TaskParams> = { n: 1, quality: 'high', output_format: 'png' }
-const reviewParams: Partial<TaskParams> = { n: 4, quality: 'medium', output_format: 'png' }
 const previewZoomMin = 1
 const previewZoomMax = 4
 const outputSizeTiers: SizeTier[] = ['1K', '2K', '4K']
@@ -90,14 +147,41 @@ const qualityOptions: Array<{ label: string; value: TaskParams['quality']; hint:
   { label: '快速', value: 'low', hint: '测试构图' },
   { label: '标准', value: 'medium', hint: '客户审片' },
   { label: '精修', value: 'high', hint: '最终交付' },
+  { label: '超清', value: 'xhigh', hint: 'GPT Image 2.5+' },
+  { label: '最高', value: 'max', hint: 'GPT Image 2.5+' },
+]
+const complexityOptions: Array<{ label: string; value: TaskParams['complexity']; hint: string }> = [
+  { label: '自动', value: 'auto', hint: '不发送' },
+  { label: '低', value: 'low', hint: '快速规划' },
+  { label: '中', value: 'medium', hint: '平衡' },
+  { label: '高', value: 'high', hint: '充分规划' },
 ]
 const formatOptions: Array<{ label: string; value: TaskParams['output_format'] }> = [
   { label: 'PNG', value: 'png' },
   { label: 'WebP', value: 'webp' },
   { label: 'JPEG', value: 'jpeg' },
+  { label: 'GIF', value: 'gif' },
+  { label: 'SVG', value: 'svg' },
 ]
-const retouchCategories: Array<{ id: RetouchCategoryId; title: string; shortTitle: string; summary: string; icon: typeof PhotoIcon }> = [
-  { id: 'aiNative', title: 'AI Native', shortTitle: 'AI Native', summary: '纸刊创作与智能修图', icon: NativeIcon },
+const retouchCategories: Array<{
+  id: RetouchCategoryId
+  title: string
+  shortTitle: string
+  summary: string
+  icon: ComponentType<SVGProps<SVGSVGElement>>
+}> = [
+  {
+    id: 'commerce', title: '电商 · 小红书', shortTitle: '商业创作',
+    summary: '商品展示、生活广告与小红书海报，一站开始。', icon: ShoppingBag,
+  },
+  {
+    id: 'aiNative',
+    title: 'AI Native',
+    shortTitle: 'AI Native',
+    summary: '让一张照片，拥有更多表达。',
+    icon: NativeIcon,
+  },
+  { id: 'custom', title: '我的模板', shortTitle: '我的模板', summary: '把常用的创作方式，留给下一次灵感。', icon: BookOpen },
   { id: 'aiColor', title: 'AI色彩', shortTitle: '色彩', summary: 'AI追色 / 样片 / 套图', icon: RefreshIcon },
   { id: 'tone', title: '调色', shortTitle: '调色', summary: '白平衡 / 全局 / 黑白场', icon: SettingsIcon },
   { id: 'local', title: '局部', shortTitle: '局部', summary: '面部 / 背景 / 区域色彩', icon: EditIcon },
@@ -109,11 +193,13 @@ const retouchCategories: Array<{ id: RetouchCategoryId; title: string; shortTitl
 ]
 
 const categoryTemplateAliases: Partial<Record<RetouchCategoryId, RetouchCategoryId[]>> = {
+  commerce: ['ecommerce', 'xiaohongshu'],
   portrait: ['portrait', 'body', 'slim', 'skin'],
   image: ['image', 'background'],
   tone: ['tone', 'global'],
   postColor: ['postColor', 'portraitColor'],
 }
+const ALL_TEMPLATE_GROUPS = '__all__'
 
 const strengthOptions: Array<{ id: RetouchStrengthId; label: string; prompt: string }> = [
   { id: 'light', label: '轻微', prompt: '处理强度为轻微，只做肉眼可感知但非常自然的调整。' },
@@ -128,665 +214,6 @@ const targetOptions: Array<{ id: RetouchTargetId; label: string; prompt: string 
   { id: 'male', label: '男性', prompt: '按男性人像审美处理，保留骨相、皮肤质感和自然面部结构，避免过度柔化。' },
   { id: 'child', label: '儿童', prompt: '按儿童或宝宝人像处理，保留真实稚嫩肤质、表情和安全自然的比例。' },
   { id: 'product', label: '产品/物体', prompt: '按产品或非人像主体处理，重点保护结构、材质、文字、边缘和真实透视。' },
-]
-
-const retouchTemplates: RetouchTemplate[] = [
-  ...editorialRetouchPresets,
-  {
-    id: 'body-bust',
-    category: 'portrait',
-    group: '丰体',
-    title: '丰胸',
-    scenario: '自然提升胸型，保留衣褶',
-    params: highParams,
-    prompt: '对输入人像做专业自然丰胸修图：轻微提升胸部体积和线条，保持衣物纹理、肩颈结构、姿态、身份和光影不变，避免夸张变形、边缘扭曲和塑料感。',
-  },
-  {
-    id: 'body-lips',
-    category: 'portrait',
-    group: '丰体',
-    title: '丰唇',
-    scenario: '唇形饱满，口红边缘干净',
-    params: highParams,
-    prompt: '对输入人像做自然丰唇：让唇部更饱满、轮廓更干净，修正唇妆边缘和干纹，保留原本表情、牙齿、肤色、妆容风格和人物身份。',
-  },
-  {
-    id: 'body-hip',
-    category: 'portrait',
-    group: '丰体',
-    title: '丰臀',
-    scenario: '臀线更饱满，腿型不漂移',
-    params: highParams,
-    prompt: '对输入全身或半身人像做自然丰臀：优化臀部曲线和裤装轮廓，保持腿部比例、衣物纹理、背景直线和人物姿态稳定，不要产生液化痕迹。',
-  },
-  {
-    id: 'slim-waist',
-    category: 'portrait',
-    group: '瘦身',
-    title: '瘦腰',
-    scenario: '腰线收紧，服装自然',
-    params: highParams,
-    prompt: '对输入人像做自然瘦腰：轻微收紧腰线和衣物轮廓，保持肩胯比例、手臂位置、背景直线和衣服纹理不变，避免过度液化。',
-  },
-  {
-    id: 'slim-belly',
-    category: 'portrait',
-    group: '瘦身',
-    title: '瘦小肚子',
-    scenario: '腹部平整，保留坐姿/站姿',
-    params: highParams,
-    prompt: '对输入人像轻微收紧小腹：让腹部和衣物前襟更平整自然，保留真实姿态、衣褶、裤腰和光影，不改变人物身份与背景结构。',
-  },
-  {
-    id: 'slim-arm',
-    category: 'portrait',
-    group: '瘦身',
-    title: '瘦手臂',
-    scenario: '上臂线条清爽',
-    params: highParams,
-    prompt: '对输入人像做自然瘦手臂：优化上臂和前臂线条，保持手肘、手腕、衣袖边缘、皮肤质感和背景不变，避免边缘拉扯。',
-  },
-  {
-    id: 'slim-finger',
-    category: 'portrait',
-    group: '瘦身',
-    title: '瘦手指',
-    scenario: '手指修长，关节真实',
-    params: highParams,
-    prompt: '对输入图片中的手部做精细瘦手指：让手指更修长、指节更干净，保留指甲、戒指、皮肤纹理和真实关节结构，不要生成多余手指。',
-  },
-  {
-    id: 'skin-tone',
-    category: 'portrait',
-    group: '肤色瑕疵',
-    title: '肤色矫正',
-    scenario: '去黄去灰，肤色统一',
-    params: highParams,
-    prompt: '对输入人像做肤色矫正：统一面部和身体肤色，校正偏黄、偏灰、偏红问题，保留真实肤质、妆容、光源方向和五官结构。',
-  },
-  {
-    id: 'skin-blemish',
-    category: 'portrait',
-    group: '肤色瑕疵',
-    title: '面部去瑕疵',
-    scenario: '痘印斑点清理，肤质保留',
-    params: highParams,
-    prompt: '对输入人像做面部去瑕疵：清理临时痘痘、痘印、斑点、杂乱发丝和小红血丝，保留毛孔纹理、五官结构、妆容和人物身份。',
-  },
-  {
-    id: 'skin-body-whiten',
-    category: 'portrait',
-    group: '身体皮肤',
-    title: '全身美白',
-    scenario: '身体肤色提亮不失真',
-    params: highParams,
-    prompt: '对输入人像做全身自然美白：整体提亮肤色并压住脏色，保持肤色层次、身体体积、服装颜色和环境光真实，不要过曝。',
-  },
-  {
-    id: 'skin-body-smooth',
-    category: 'portrait',
-    group: '身体皮肤',
-    title: '全身磨皮',
-    scenario: '身体皮肤干净但有纹理',
-    params: highParams,
-    prompt: '对输入人像做全身自然磨皮：弱化皮肤小瑕疵和粗糙颗粒，保留身体结构、真实纹理、光影转折和边缘细节，避免蜡像感。',
-  },
-  {
-    id: 'skin-dodge-burn-smooth',
-    category: 'portrait',
-    group: '中性灰',
-    title: '面部中性灰磨皮',
-    scenario: '高端磨皮，保留毛孔',
-    params: highParams,
-    prompt: '按专业中性灰思路处理面部皮肤：柔和明暗不均和细小瑕疵，保留毛孔、皮肤纹理、五官结构和真实光影，不要改变脸型。',
-  },
-  {
-    id: 'skin-dodge-burn-volume',
-    category: 'portrait',
-    group: '中性灰',
-    title: '面部中性灰立体',
-    scenario: '增强面部体积和骨相',
-    params: highParams,
-    prompt: '按专业中性灰修图增强面部立体感：优化额头、鼻梁、颧骨、下巴和面颊的明暗层次，保留真实肤质、身份和原始光源方向。',
-  },
-  {
-    id: 'skin-forehead-lines',
-    category: 'portrait',
-    group: '纹路',
-    title: '去抬头纹',
-    scenario: '额头纹路自然减淡',
-    params: highParams,
-    prompt: '自然减淡输入人像的抬头纹：保留额头体积、肤质细节、表情和光影层次，不要把皮肤磨成一片。',
-  },
-  {
-    id: 'skin-eye-lines',
-    category: 'portrait',
-    group: '眼周',
-    title: '去眼周纹',
-    scenario: '眼周年轻但不假',
-    params: highParams,
-    prompt: '自然减淡眼周细纹和干纹：保留眼神、卧蚕、睫毛、妆容和皮肤纹理，不改变眼睛形状和人物身份。',
-  },
-  {
-    id: 'skin-dark-circle',
-    category: 'portrait',
-    group: '眼周',
-    title: '去黑眼圈',
-    scenario: '眼下干净，保留卧蚕',
-    params: highParams,
-    prompt: '对输入人像去黑眼圈：均匀眼下暗沉和色偏，保留卧蚕、眼袋自然结构、眼神高光、妆容和真实肤质。',
-  },
-  {
-    id: 'skin-eye-bag',
-    category: 'portrait',
-    group: '眼周',
-    title: '去眼袋',
-    scenario: '眼袋减弱，眼神不变',
-    params: highParams,
-    prompt: '自然减弱眼袋和泪沟阴影：保持眼部结构、年龄特征、眼神和原始光源方向，不要抹平到失真。',
-  },
-  {
-    id: 'skin-nasolabial',
-    category: 'portrait',
-    group: '纹路',
-    title: '去法令纹',
-    scenario: '法令纹减淡，表情保留',
-    params: highParams,
-    prompt: '自然减淡法令纹：保留笑容、面部体积、鼻翼和嘴角结构，避免脸部变形或表情僵硬。',
-  },
-  {
-    id: 'skin-lip-lines',
-    category: 'portrait',
-    group: '纹路',
-    title: '唇纹修正',
-    scenario: '唇部更干净，唇形不变',
-    params: highParams,
-    prompt: '修正唇纹和唇部干裂：让唇部更平滑饱满，保留唇形、口红质感、高光和真实表情。',
-  },
-  {
-    id: 'skin-neck-lines',
-    category: 'portrait',
-    group: '纹路',
-    title: '去颈纹',
-    scenario: '颈部纹路自然减淡',
-    params: highParams,
-    prompt: '自然减淡颈纹和颈部暗沉：保留颈部体积、锁骨、衣领边缘和真实光影，不要破坏身体结构。',
-  },
-  {
-    id: 'skin-even-face',
-    category: 'portrait',
-    group: '肤色瑕疵',
-    title: '面部均肤',
-    scenario: '面部色块统一',
-    params: highParams,
-    prompt: '对输入人像做面部均肤：统一脸颊、额头、鼻翼和下巴的色块与明暗，保留毛孔纹理、妆容边界和五官立体感。',
-  },
-  {
-    id: 'background-passersby',
-    category: 'image',
-    group: '背景修复',
-    title: '消除路人',
-    scenario: '移除路人并补全背景',
-    params: highParams,
-    prompt: '保留主体人物或产品不变，移除背景中的路人和干扰人物，并自然补全被遮挡的背景纹理、透视、光影和地面阴影。',
-  },
-  {
-    id: 'background-clutter',
-    category: 'image',
-    group: '背景修复',
-    title: '消除杂物',
-    scenario: '清理杂乱物体',
-    params: highParams,
-    prompt: '保留主体不变，清理画面中的杂物、垃圾、线缆、污点和无关小物件，按原场景透视和光线自然补齐背景。',
-  },
-  {
-    id: 'background-smart-remove',
-    category: 'image',
-    group: '工具',
-    title: '智能消除',
-    scenario: '像素蛋糕同类工具，AI补纹理',
-    params: highParams,
-    prompt: '对输入图片执行智能消除：删除明显干扰物并生成一致的背景纹理，主体边缘、阴影、空间透视和画面真实感必须保持稳定。',
-  },
-  {
-    id: 'background-studio',
-    category: 'image',
-    group: '背景修复',
-    title: '棚拍背景修复',
-    scenario: '修脏背景和褶皱',
-    params: highParams,
-    prompt: '修复摄影棚或纯色背景：清理背景污点、褶皱、色带和阴影断层，保留主体轮廓、发丝边缘和真实落影。',
-  },
-  {
-    id: 'global-rotate',
-    category: 'crop',
-    group: '校正',
-    title: '旋转矫正',
-    scenario: '地平线和垂直线校正',
-    params: highParams,
-    prompt: '对输入图片做旋转和透视矫正：校正倾斜的地平线、墙角、门框、镜子或产品边缘，保持完整构图并自然补齐边缘空白。',
-  },
-  {
-    id: 'global-color',
-    category: 'tone',
-    group: '全局美化',
-    title: '全局调色',
-    scenario: '整体商业质感',
-    params: highParams,
-    prompt: '对输入图片做全局商业调色：优化对比度、层次、饱和度和色彩关系，让画面干净高级，主体颜色准确，不改变形状和身份。',
-  },
-  {
-    id: 'global-white-balance',
-    category: 'tone',
-    group: '全局美化',
-    title: '白平衡矫正',
-    scenario: '去偏黄/偏绿/偏蓝',
-    params: highParams,
-    prompt: '校正输入图片白平衡：去除偏黄、偏绿、偏蓝或混合光脏色，保持肤色、白色衣物、产品颜色和背景中性自然。',
-  },
-  {
-    id: 'global-face-exposure',
-    category: 'local',
-    group: '局部曝光',
-    title: '面部曝光平衡',
-    scenario: '脸部亮度和身体统一',
-    params: highParams,
-    prompt: '平衡人像面部曝光：让面部、颈部和身体亮度协调，修正局部过暗或过亮，保留真实体积、妆容和环境光方向。',
-  },
-  {
-    id: 'global-solid-color',
-    category: 'tone',
-    group: '全局美化',
-    title: '纯色矫正',
-    scenario: '白底/灰底/证件底干净',
-    params: highParams,
-    prompt: '对纯色背景或纯色产品区域做矫正：统一色面、清理色带和脏点，保留主体边缘、纹理和真实阴影。',
-  },
-  {
-    id: 'portrait-texture',
-    category: 'postColor',
-    group: '肤色风格',
-    title: '质感肌',
-    scenario: '清晰皮肤和微对比',
-    params: highParams,
-    prompt: '按质感肌风格处理输入人像：增强皮肤微对比和真实质地，控制高光和暗部层次，肤色干净但不磨平。',
-  },
-  {
-    id: 'portrait-cream',
-    category: 'postColor',
-    group: '肤色风格',
-    title: '奶油肌',
-    scenario: '柔和通透，适合写真',
-    params: highParams,
-    prompt: '按奶油肌风格处理输入人像：肤色柔和通透，暗部干净，整体低对比但保留五官立体和皮肤纹理。',
-  },
-  {
-    id: 'portrait-native',
-    category: 'postColor',
-    group: '肤色风格',
-    title: '原生肌',
-    scenario: '自然真实不过度',
-    params: highParams,
-    prompt: '按原生肌风格处理输入人像：只清理临时瑕疵和明显脏色，最大程度保留真实肤质、年龄特征、妆容和身份。',
-  },
-  {
-    id: 'portrait-neutral',
-    category: 'postColor',
-    group: '肤色风格',
-    title: '肤色-中性',
-    scenario: '肤色准确，商业通用',
-    params: highParams,
-    prompt: '将输入人像肤色调整为中性自然：校正偏色，保持肤色准确、白平衡稳定、妆容真实，适合商业交付。',
-  },
-  {
-    id: 'portrait-cool',
-    category: 'postColor',
-    group: '肤色风格',
-    title: '肤色-清冷',
-    scenario: '清冷干净，不发灰',
-    params: highParams,
-    prompt: '将输入人像调成清冷干净风格：略降暖色和脏黄，保留肤色生命力、黑白灰层次和真实环境光，不要发灰。',
-  },
-  {
-    id: 'portrait-wedding-light',
-    category: 'postColor',
-    group: '场景预设',
-    title: '婚纱浅色内景',
-    scenario: '白纱干净，高光可控',
-    params: highParams,
-    prompt: '按婚纱浅色内景风格调色：白纱干净有层次，肤色柔和，背景明亮通透，高光不过曝，保留礼服纹理。',
-  },
-  {
-    id: 'portrait-wedding-report',
-    category: 'postColor',
-    group: '场景预设',
-    title: '婚礼跟拍',
-    scenario: '现场感和肤色稳定',
-    params: highParams,
-    prompt: '按婚礼跟拍风格处理输入图片：校正混合光和肤色，保留现场氛围、人物关系和纪实感，让画面干净可交付。',
-  },
-  {
-    id: 'portrait-child-bright',
-    category: 'postColor',
-    group: '场景预设',
-    title: '儿童亮调纯净',
-    scenario: '明亮通透，肤色干净',
-    params: highParams,
-    prompt: '按儿童亮调纯净风格处理输入图片：整体明亮柔和，肤色干净自然，保留儿童真实表情、发丝和衣物颜色。',
-  },
-  {
-    id: 'portrait-maternity',
-    category: 'postColor',
-    group: '场景预设',
-    title: '孕妇自然通用',
-    scenario: '柔和肤色和体态',
-    params: highParams,
-    prompt: '按孕妇写真自然通用风格处理输入图片：肤色柔和，体态自然，服装和背景干净，保留温柔光影和人物身份。',
-  },
-  {
-    id: 'portrait-newborn',
-    category: 'postColor',
-    group: '场景预设',
-    title: '新生儿爱婴',
-    scenario: '柔软肤色和干净背景',
-    params: highParams,
-    prompt: '按新生儿柔和风格处理输入图片：肤色温和自然，背景干净，弱化红疹和脏色，保留宝宝真实轮廓和柔软质感。',
-  },
-  {
-    id: 'ai-color-match',
-    category: 'aiColor',
-    group: 'AI追色',
-    title: 'AI追色',
-    scenario: '参考样片统一色彩',
-    params: highParams,
-    prompt: '把输入图片调成参考样片式的色彩逻辑：匹配整体色温、对比、肤色倾向和氛围，但保留当前图片的主体结构、身份、背景空间和真实光影。',
-  },
-  {
-    id: 'ai-series-match',
-    category: 'aiColor',
-    group: 'AI追色',
-    title: '套图色彩统一',
-    scenario: '多图同一交付风格',
-    params: highParams,
-    prompt: '将输入图片统一为同一套图交付风格：白平衡、肤色、对比、黑白场和背景干净度保持一致，主体身份和构图不变。',
-  },
-  {
-    id: 'ai-sample-import-match',
-    category: 'aiColor',
-    group: 'AI追色',
-    title: '导入样片追色',
-    scenario: '按参考图复制色彩逻辑',
-    params: highParams,
-    prompt: '把输入图片向参考样片追色：学习参考图的色温、肤色、黑白场、对比、饱和度和氛围，但不复制参考图内容，当前主体身份、构图和空间不变。',
-  },
-  {
-    id: 'ai-result-as-sample',
-    category: 'aiColor',
-    group: 'AI追色',
-    title: '结果创建样片',
-    scenario: '把当前效果延展成系列风格',
-    params: highParams,
-    prompt: '把当前修图效果视作样片风格，并将输入图片统一到同一审美：肤色、白平衡、对比、背景干净度和整体质感保持系列一致。',
-  },
-  {
-    id: 'style-light-wood-film',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '轻木胶片',
-    scenario: '浅暖胶片，干净柔和',
-    params: highParams,
-    prompt: '按轻木胶片风格调色：浅暖、柔和、低脏色、肤色干净，保留胶片式轻微层次和真实高光。',
-  },
-  {
-    id: 'style-manor-birthday',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '庄园生日',
-    scenario: '暖调仪式感',
-    params: highParams,
-    prompt: '按庄园生日风格调色：暖调、通透、带轻微复古仪式感，突出人物和环境层次，避免过黄和过饱和。',
-  },
-  {
-    id: 'style-moment',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '时刻',
-    scenario: '纪实自然，现场感',
-    params: highParams,
-    prompt: '按纪实时刻风格调色：保留现场真实氛围，肤色自然，暗部有细节，整体干净但不过度商业化。',
-  },
-  {
-    id: 'style-milk-bear',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '奶白小熊',
-    scenario: '奶白柔和，儿童友好',
-    params: highParams,
-    prompt: '按奶白小熊风格调色：奶白、柔和、低对比、肤色可爱干净，适合儿童或柔和写真，保留真实纹理。',
-  },
-  {
-    id: 'style-birthday-balloon',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '生日气球',
-    scenario: '明亮欢乐，颜色不脏',
-    params: highParams,
-    prompt: '按生日气球风格调色：明亮、轻快、色彩鲜活但不刺眼，保持肤色干净和背景装饰颜色准确。',
-  },
-  {
-    id: 'style-retro-nanyang',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '复古南洋',
-    scenario: '复古暖绿，电影感',
-    params: highParams,
-    prompt: '按复古南洋风格调色：暖绿复古、暗部有电影感，肤色保持健康，不要脏绿或过度偏色。',
-  },
-  {
-    id: 'style-modern-moon',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '摩登月影',
-    scenario: '冷暖对比，高级暗调',
-    params: highParams,
-    prompt: '按摩登月影风格调色：冷暖对比明确，暗调高级，肤色和主体边缘保持清晰，避免死黑。',
-  },
-  {
-    id: 'style-cream-cake',
-    category: 'aiColor',
-    group: '色彩风格',
-    title: '奶油蛋糕',
-    scenario: '奶油通透，甜美干净',
-    params: highParams,
-    prompt: '按奶油蛋糕风格调色：柔和、甜美、通透，肤色干净，背景和高光呈奶油质感但不过曝。',
-  },
-  {
-    id: 'ai-client-revision',
-    category: 'aiNative',
-    title: '客户意见改稿',
-    scenario: '按文字意见精准修改',
-    params: highParams,
-    prompt: '根据当前修图要求做客户改稿：只修改明确要求的区域，保留已完成的主体、肤色、构图和整体风格，避免引入新的无关变化。',
-  },
-  {
-    id: 'ai-review-versions',
-    category: 'aiNative',
-    title: '4版审片',
-    scenario: '同主体多版本可选',
-    params: reviewParams,
-    prompt: '基于输入图片生成 4 个可交付审片版本：主体、身份、透视和裁切保持一致，只变化调色强度、背景干净度、阴影层次和整体氛围，方便客户选择。',
-  },
-  {
-    id: 'ai-clothes',
-    category: 'clothes',
-    group: '衣物美化',
-    title: '衣物美化',
-    scenario: '褶皱、污点、领口修正',
-    params: highParams,
-    prompt: '对输入图片做衣物美化：整理明显褶皱、污点、领口不平和线头，保留面料纹理、花纹、品牌文字、身体结构和自然阴影。',
-  },
-  {
-    id: 'ai-local-color',
-    category: 'local',
-    group: '局部调色',
-    title: '局部调色',
-    scenario: '只改指定区域色彩',
-    params: highParams,
-    prompt: '对输入图片做局部调色：只调整需要优化的区域色彩和明暗，保持人物身份、肤色关系、背景和未指定区域不变，过渡要自然。',
-  },
-  {
-    id: 'tool-liquify',
-    category: 'portrait',
-    group: '工具',
-    title: '液化',
-    scenario: '形体线条微调',
-    params: highParams,
-    prompt: '使用专业液化思路微调人物形体和面部线条：只做自然比例优化，保护背景直线、衣物纹理、五官身份和真实光影，避免任何拉扯痕迹。',
-  },
-  {
-    id: 'tool-spot-heal',
-    category: 'portrait',
-    group: '工具',
-    title: '污点修复',
-    scenario: '点状瑕疵清理',
-    params: highParams,
-    prompt: '对输入图片执行污点修复：清理皮肤、背景或产品上的点状瑕疵、灰尘、小污点和临时痕迹，保留周围纹理连续自然。',
-  },
-  {
-    id: 'tool-patch',
-    category: 'image',
-    group: '工具',
-    title: '修补',
-    scenario: '局部纹理补全',
-    params: highParams,
-    prompt: '对输入图片执行修补：将破损、缺失或杂乱区域自然补齐，匹配周围纹理、透视、明暗和噪声颗粒，主体结构不变。',
-  },
-  {
-    id: 'tool-clone',
-    category: 'image',
-    group: '工具',
-    title: '仿制图章',
-    scenario: '复制纹理补背景',
-    params: highParams,
-    prompt: '按仿制图章思路修复输入图片：用画面内一致纹理补全脏点、断层和缺失区域，保持边缘、颗粒、透视和光影一致。',
-  },
-  {
-    id: 'tool-reference-line',
-    category: 'crop',
-    group: '校正',
-    title: '参考线校正',
-    scenario: '按垂直水平线矫正',
-    params: highParams,
-    prompt: '按参考线进行画面校正：让墙线、门框、镜子、地平线或产品边缘恢复水平/垂直，保留完整主体并自然补齐边缘。',
-  },
-  {
-    id: 'crop-fit',
-    category: 'crop',
-    group: '校正',
-    title: '合适画幅',
-    scenario: '完整显示主体并补边',
-    params: highParams,
-    prompt: '调整输入图片画幅让主体完整居中显示：必要时自然扩展或补齐边缘背景，保持主体比例、透视和构图稳定。',
-  },
-  {
-    id: 'tone-black-white',
-    category: 'tone',
-    group: '全局美化',
-    title: '黑白场校正',
-    scenario: '压脏灰，提层次',
-    params: highParams,
-    prompt: '校正输入图片黑白场：压住脏灰和雾感，提升明暗层次与通透度，保留高光细节、暗部信息和真实色彩关系。',
-  },
-  {
-    id: 'tone-noise',
-    category: 'tone',
-    group: '全局美化',
-    title: '降噪锐化',
-    scenario: '干净清晰不过锐',
-    params: highParams,
-    prompt: '对输入图片做专业降噪和适度锐化：减少噪点、压缩痕迹和脏颗粒，同时保留皮肤、衣物、产品材质与边缘细节。',
-  },
-  {
-    id: 'local-face-bright',
-    category: 'local',
-    group: '局部曝光',
-    title: '面部提亮',
-    scenario: '脸部亮度更稳定',
-    params: highParams,
-    prompt: '只对面部做自然提亮和曝光平衡：保持肤色、五官结构、妆容、背景和身体曝光关系稳定，不要整体漂白。',
-  },
-  {
-    id: 'local-background-dark',
-    category: 'local',
-    group: '局部调色',
-    title: '背景压暗',
-    scenario: '突出主体',
-    params: highParams,
-    prompt: '只压暗和整理背景，让主体更突出；主体肤色、产品颜色、衣物和边缘光保持不变，背景过渡要自然。',
-  },
-  {
-    id: 'clothes-wrinkle',
-    category: 'clothes',
-    group: '衣物美化',
-    title: '去衣物褶皱',
-    scenario: '衣面平整，纹理保留',
-    params: highParams,
-    prompt: '去除衣物明显褶皱和不平整区域：保持面料纹理、缝线、图案、身体结构和自然阴影，避免衣服变成一片平面。',
-  },
-  {
-    id: 'clothes-stain',
-    category: 'clothes',
-    group: '衣物美化',
-    title: '去衣物污渍',
-    scenario: '污点清理，颜色一致',
-    params: highParams,
-    prompt: '清理衣物上的污渍、灰尘、线头和局部脏色，匹配原有面料颜色、纹理和光影，不改变衣服款式。',
-  },
-  {
-    id: 'clothes-neckline',
-    category: 'clothes',
-    group: '衣物美化',
-    title: '领口修正',
-    scenario: '领口对称，边缘自然',
-    params: highParams,
-    prompt: '修正衣物领口、袖口或裤腰的不平整和轻微歪斜：保持人体结构、服装款式、纹理和自然阴影。',
-  },
-  {
-    id: 'post-wedding-deep',
-    category: 'postColor',
-    group: '场景预设',
-    title: '婚纱深色内景',
-    scenario: '深色背景，高级质感',
-    params: highParams,
-    prompt: '按婚纱深色内景风格调色：压住背景杂色，提升肤色和白纱层次，保持暗部质感、高光细节和高级氛围。',
-  },
-  {
-    id: 'post-child-dark',
-    category: 'postColor',
-    group: '场景预设',
-    title: '儿童暗调质感',
-    scenario: '暗调干净，有故事感',
-    params: highParams,
-    prompt: '按儿童暗调质感风格调色：降低杂色和背景干扰，保留儿童真实肤色、表情和画面故事感，暗部不能死黑。',
-  },
-  {
-    id: 'ai-smart-filter',
-    category: 'aiNative',
-    group: 'AI工作流',
-    title: '智能筛片建议',
-    scenario: '指出保留/重修方向',
-    params: highParams,
-    prompt: '基于输入图片生成一版可交付修图，并在画面处理上优先解决影响成片率的问题：主体清晰度、表情、肤色、构图、背景干净度和交付一致性。',
-  },
-  {
-    id: 'ai-keep-identity',
-    category: 'aiNative',
-    group: 'AI工作流',
-    title: '身份锁定精修',
-    scenario: '强约束五官和主体',
-    params: highParams,
-    prompt: '对输入图片进行身份锁定精修：所有修图都必须保留人物身份、五官比例、发型、服装、主体结构和背景空间，只改善瑕疵、色彩和光影。',
-  },
 ]
 
 function formatStatus(status?: string) {
@@ -817,12 +244,14 @@ function sameImageIds(a: string[], b: string[]) {
 function getNearestOutputRatio(aspectRatio: number | null) {
   if (!aspectRatio || !Number.isFinite(aspectRatio) || aspectRatio <= 0) return '1:1'
 
-  return commonOutputRatios
-    .map((ratio) => ({
-      label: ratio.label,
-      delta: Math.abs(aspectRatio - ratio.value) / ratio.value,
-    }))
-    .sort((a, b) => a.delta - b.delta)[0]?.label ?? '1:1'
+  return (
+    commonOutputRatios
+      .map((ratio) => ({
+        label: ratio.label,
+        delta: Math.abs(aspectRatio - ratio.value) / ratio.value,
+      }))
+      .sort((a, b) => a.delta - b.delta)[0]?.label ?? '1:1'
+  )
 }
 
 function getOutputSizePreset(size: string): { id: RetouchOutputSizeId; ratio: string | null } {
@@ -842,13 +271,18 @@ function getOutputSizePreset(size: string): { id: RetouchOutputSizeId; ratio: st
 function buildRetouchPrompt(template: RetouchTemplate, strengthId: RetouchStrengthId, targetId: RetouchTargetId) {
   const strength = strengthOptions.find((option) => option.id === strengthId) ?? strengthOptions[1]
   const target = targetOptions.find((option) => option.id === targetId) ?? targetOptions[0]
+  if (template.category === 'ecommerce' || template.category === 'xiaohongshu') return template.prompt
   if (template.composition === 'poster') {
     return `${template.prompt}\n\n执行设置：视觉处理强度为${strength.label}，只作用于新增的排版、图形和材料效果；主体按${target.label}识别，保持原照片的身份、真实细节和内部空间关系。允许按本预设重新安排照片在成品画布中的位置，不擅自改写照片内容。`
   }
   return `${template.prompt}\n\n执行设置：${strength.prompt}${target.prompt} 保持专业修图逻辑：只修改当前功能相关区域，不要改动无关主体、身份、文字、构图和真实光影。`
 }
 
-function buildStackedRetouchPrompt(templates: RetouchTemplate[], strengthId: RetouchStrengthId, targetId: RetouchTargetId) {
+function buildStackedRetouchPrompt(
+  templates: RetouchTemplate[],
+  strengthId: RetouchStrengthId,
+  targetId: RetouchTargetId,
+) {
   if (templates.length === 0) return ''
   if (templates.length === 1) return buildRetouchPrompt(templates[0], strengthId, targetId)
 
@@ -864,7 +298,7 @@ function buildStackedRetouchPrompt(templates: RetouchTemplate[], strengthId: Ret
     .join('\n')
 
   if (posterTemplate) {
-    return `先在原照片上完成明确选择的修图，再将修好的照片放入最后一项纸刊版式：\n${steps}\n\n执行设置：${strength.prompt}${target.prompt} 普通修图仅影响已选择功能相关区域；纸刊设计可以调整整张照片在新画布中的位置和比例，不能再次修改照片内部的人物身份、主体结构、文字和真实光影。纸刊材料效果仅作用于新增区域。`
+    return `先在参考图上完成明确选择的修图，再执行最后一项创意版式：\n${steps}\n\n执行设置：${strength.prompt}${target.prompt} 普通修图仅影响已选择功能相关区域；创意版式可以调整主体在新画布中的位置和比例，不能再次修改照片内部的人物身份、主体结构、文字和真实光影。新增设计效果仅作用于预设明确允许的区域。`
   }
   return `对输入图片执行以下专业修图组合，按顺序叠加处理，不互相覆盖：\n${steps}\n\n执行设置：${strength.prompt}${target.prompt} 保持专业修图逻辑：只修改已选择功能相关区域，不要改动无关主体、身份、文字、构图和真实光影。`
 }
@@ -887,7 +321,7 @@ function useCachedImageSource(imageId?: string | null, fallbackSrc?: string | nu
       }
     }
 
-    setLoadedImage((current) => current?.imageId === normalizedImageId ? current : null)
+    setLoadedImage((current) => (current?.imageId === normalizedImageId ? current : null))
     ensureImageCached(normalizedImageId).then((url) => {
       if (!cancelled) setLoadedImage({ imageId: normalizedImageId, src: url ?? null })
     })
@@ -901,25 +335,7 @@ function useCachedImageSource(imageId?: string | null, fallbackSrc?: string | nu
   return loadedImage.src ?? fallback
 }
 
-function getApiDisplayLabel(value: string) {
-  if (!value || value === '未填写 API 地址') return value
-  try {
-    const url = new URL(value)
-    return url.host
-  } catch {
-    return truncateMiddle(value)
-  }
-}
-
-function OutputImage({
-  imageId,
-  imageList,
-  label,
-}: {
-  imageId: string
-  imageList: string[]
-  label: string
-}) {
+function OutputImage({ imageId, imageList, label }: { imageId: string; imageList: string[]; label: string }) {
   const setLightboxImageId = useStore((s) => s.setLightboxImageId)
   const src = useCachedImageSource(imageId)
 
@@ -940,42 +356,37 @@ function HistoryThumb({ task }: { task: { outputImages: string[]; inputImageIds:
   const src = useCachedImageSource(thumbId)
 
   return (
-    <span className="retouch-history-thumb">
-      {src ? <img src={src} alt="" /> : <PhotoIcon className="h-4 w-4" />}
-    </span>
+    <span className="retouch-history-thumb">{src ? <img src={src} alt="" /> : <PhotoIcon className="h-4 w-4" />}</span>
   )
 }
 
-function RetouchPreviewEmpty({
-  hasHistorySelection,
-  generationMode,
-  onUpload,
-}: {
+function RetouchPreviewEmpty({ hasHistorySelection, generationMode, onUpload, onDescribe, onBrowse, onExample }: {
   hasHistorySelection: boolean
   generationMode: RetouchGenerationMode
   onUpload: () => void
+  onDescribe: () => void
+  onBrowse: () => void
+  onExample: (id: string) => void
 }) {
-  const title = hasHistorySelection
-    ? '历史记录缺少可预览图片'
-    : generationMode === 'text'
-      ? '让灵感成为画面'
-      : '从一张照片开始'
-  const description = hasHistorySelection
-    ? '请选择另一条历史，或重新上传参考图。'
-    : generationMode === 'text'
-      ? '在右侧写下画面描述，创建你的第一张作品。'
-      : '拖入照片，或选择文件。为它挑选一种新的表达。'
-
-  return (
-    <button type="button" className="retouch-preview-empty" onClick={onUpload}>
-      <span className="retouch-empty-icon"><PhotoIcon className="h-7 w-7" aria-hidden="true" /></span>
-      <strong>{title}</strong>
-      <span>{description}</span>
-      <span className="retouch-preview-upload-cta">
-        {generationMode === 'text' ? '上传参考图并修图' : '上传参考图'}
-      </span>
-    </button>
-  )
+  return <div className="studio-start">
+    <ImagePlus size={28} strokeWidth={1.4} />
+    <h1>{hasHistorySelection ? '这条记录没有可预览的图片' : '开始一张新作品'}</h1>
+    <p>选个模板快速开始，或直接写下你的想法。</p>
+    <div className="studio-start-actions"><StudioButton tone="primary" onClick={onBrowse}><Grid2X2 size={15} />选择模板</StudioButton><StudioButton onClick={generationMode === 'edit' ? onUpload : onDescribe}>{generationMode === 'edit' ? '上传参考图' : '直接创作'}<ArrowRight size={14} /></StudioButton></div>
+    <div className="studio-starter-examples">
+      <span>从一个完整示例开始</span>
+      <div>
+        <StudioButton tone="ghost" className="studio-starter-example" onClick={() => onExample('commerce-product-hero')}>
+          <img src={`${import.meta.env.BASE_URL}studio/product-still-life.jpg`} alt="" />
+          <span><strong>电商主图</strong><small>让产品成为主角</small></span><ArrowUpRight size={14} />
+        </StudioButton>
+        <StudioButton tone="ghost" className="studio-starter-example" onClick={() => onExample('xiaohongshu-product-cover')}>
+          <img src={`${import.meta.env.BASE_URL}studio/notes-editorial.jpg`} alt="" />
+          <span><strong>小红书封面</strong><small>把想法写进画面</small></span><ArrowUpRight size={14} />
+        </StudioButton>
+      </div>
+    </div>
+  </div>
 }
 
 function RetouchPreviewImage({
@@ -1022,6 +433,8 @@ async function loadFiles(files: FileList | File[]) {
 }
 
 export default function RetouchWorkspace() {
+  const userTemplates = useUserTemplates((state) => state.templates)
+  const retouchTemplates = useMemo<RetouchTemplate[]>(() => [...builtInRetouchTemplates, ...userTemplates], [userTemplates])
   const settings = useStore((s) => s.settings)
   const tasks = useStore((s) => s.tasks)
   const inputImages = useStore((s) => s.inputImages)
@@ -1032,16 +445,32 @@ export default function RetouchWorkspace() {
   const setLightboxImageId = useStore((s) => s.setLightboxImageId)
   const setMaskEditorImageId = useStore((s) => s.setMaskEditorImageId)
   const removeInputImage = useStore((s) => s.removeInputImage)
-  const clearInputImages = useStore((s) => s.clearInputImages)
   const clearMaskDraft = useStore((s) => s.clearMaskDraft)
   const maskDraft = useStore((s) => s.maskDraft)
-  const showSettings = useStore((s) => s.showSettings)
   const setShowSettings = useStore((s) => s.setShowSettings)
+  const setSettings = useStore((s) => s.setSettings)
   const showToast = useStore((s) => s.showToast)
+  const setConfirmDialog = useStore((s) => s.setConfirmDialog)
 
   const previewStageRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showSizePicker, setShowSizePicker] = useState(false)
+  const [showOutputDrawer, setShowOutputDrawer] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [showMobileNav, setShowMobileNav] = useState(false)
+  const [templateEditor, setTemplateEditor] = useState<{ template?: UserTemplate } | null>(null)
+  const [workspaceView, setWorkspaceView] = useState<'library' | 'canvas'>('canvas')
+  const [templateSearch, setTemplateSearch] = useState('')
+  const [historyFilter, setHistoryFilter] = useState('all')
+  const [mobilePanel, setMobilePanel] = useState<'preview' | 'compose'>(() => prompt.trim() ? 'compose' : 'preview')
+  const guide = useStudioGuide()
+  const settingsOpen = useStore((state) => state.showSettings)
+  const outputButtonRef = useRef<HTMLButtonElement>(null)
+  const historyButtonRef = useRef<HTMLButtonElement>(null)
+  const navButtonRef = useRef<HTMLButtonElement>(null)
+  const newTemplateButtonRef = useRef<HTMLButtonElement>(null)
+  const templateTriggerRef = useRef<HTMLElement | null>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
   const [selectedOutputRatio, setSelectedOutputRatio] = useState<{ size: string; ratio: string } | null>(null)
   const [previewStageSize, setPreviewStageSize] = useState({ width: 0, height: 0 })
   const [previewImageAspect, setPreviewImageAspect] = useState<number | null>(null)
@@ -1050,12 +479,12 @@ export default function RetouchWorkspace() {
   const [previewPanDragging, setPreviewPanDragging] = useState(false)
   const previewPanStartRef = useRef({ pointerId: 0, clientX: 0, clientY: 0, x: 0, y: 0 })
   const [isDraggingUpload, setIsDraggingUpload] = useState(false)
-  const [selectedCategoryId, setSelectedCategoryId] = useState<RetouchCategoryId>('aiNative')
+  const [selectedCategoryId, setSelectedCategoryId] = useState<RetouchCategoryId>('commerce')
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<RetouchTemplateId[]>([])
-  const [selectedGroupName, setSelectedGroupName] = useState<string | null>('纸刊海报')
+  const [selectedGroupName, setSelectedGroupName] = useState<string | null>(ALL_TEMPLATE_GROUPS)
   const [selectedStrengthId, setSelectedStrengthId] = useState<RetouchStrengthId>('standard')
   const [selectedTargetId, setSelectedTargetId] = useState<RetouchTargetId>('auto')
-  const [generationMode, setGenerationMode] = useState<RetouchGenerationMode>('edit')
+  const [generationMode, setGenerationMode] = useState<RetouchGenerationMode>(() => inputImages.length ? 'edit' : 'text')
   const [selectedHistoryTaskId, setSelectedHistoryTaskId] = useState<string | null>(null)
   const [compareEnabled, setCompareEnabled] = useState(false)
   const [comparePosition, setComparePosition] = useState(50)
@@ -1065,10 +494,51 @@ export default function RetouchWorkspace() {
   const inputSignatureRef = useRef<string | null>(null)
   const generatedPromptRef = useRef<string | null>(null)
   const promptManuallyEditedRef = useRef(false)
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === USER_TEMPLATES_KEY || event.key === null) useUserTemplates.getState().reload()
+    }
+    useUserTemplates.getState().reload()
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [])
   const activeProfile = useMemo(() => getActiveApiProfile(settings), [settings])
   const apiIssue = validateApiProfile(activeProfile)
   const qualityLocked = activeProfile.provider === 'openai' && activeProfile.codexCli
-  const effectiveQuality = qualityLocked ? 'auto' : activeProfile.provider === 'fal' && params.quality === 'auto' ? 'high' : params.quality
+  const supports26 = supportsGptImage26Params(activeProfile)
+  const extendedQuality = supportsExtendedQuality(activeProfile)
+  const effectiveQuality = qualityLocked
+    ? 'auto'
+    : !extendedQuality && (params.quality === 'xhigh' || params.quality === 'max')
+      ? 'high'
+      : activeProfile.provider === 'fal' && params.quality === 'auto'
+        ? 'high'
+        : params.quality
+  const visibleFormat = supports26
+    ? params.output_format === 'svg' && (generationMode === 'edit' || activeProfile.provider === 'fal')
+      ? 'png'
+      : params.output_format
+    : params.output_format === 'svg' || params.output_format === 'gif'
+      ? 'png'
+      : params.output_format
+  const outputSummary = [
+    `${Math.max(1, params.n)} 张`,
+    params.size === 'auto' ? '自动尺寸' : params.size.replace('x', ' × '),
+    qualityOptions.find((option) => option.value === effectiveQuality)?.label ?? effectiveQuality,
+    params.complexity !== 'auto' ? `复杂 ${params.complexity}` : null,
+    visibleFormat.toUpperCase(),
+    visibleFormat === 'gif' ? `${params.frame_count} 帧` : null,
+    activeProfile.streamImages ? '流式' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const setStreamImages = (enabled: boolean) => {
+    setSettings({
+      profiles: settings.profiles.map((profile) =>
+        profile.id === activeProfile.id ? { ...profile, streamImages: enabled } : profile,
+      ),
+    })
+  }
   const retouchTasks = useMemo(
     () => tasks.filter((task) => task.sourceMode !== 'agent' && !task.agentConversationId && !task.agentRoundId),
     [tasks],
@@ -1079,58 +549,64 @@ export default function RetouchWorkspace() {
   const isTextToImageMode = generationMode === 'text'
   const isImageEditMode = generationMode === 'edit'
   const latestTaskForCurrentInput = hasCurrentInput
-    ? retouchTasks.find((task) =>
-      task.createdAt >= inputSessionStartedAt &&
-      sameImageIds(task.inputImageIds, currentInputIds),
-    ) ?? null
+    ? (retouchTasks.find(
+        (task) => task.createdAt >= inputSessionStartedAt && sameImageIds(task.inputImageIds, currentInputIds),
+      ) ?? null)
     : null
   const latestTaskWithOutputForCurrentInput = latestTaskForCurrentInput?.outputImages.length
     ? latestTaskForCurrentInput
     : hasCurrentInput
-      ? retouchTasks.find((task) =>
-        task.createdAt >= inputSessionStartedAt &&
-        task.outputImages.length > 0 &&
-        sameImageIds(task.inputImageIds, currentInputIds),
-      ) ?? null
+      ? (retouchTasks.find(
+          (task) =>
+            task.createdAt >= inputSessionStartedAt &&
+            task.outputImages.length > 0 &&
+            sameImageIds(task.inputImageIds, currentInputIds),
+        ) ?? null)
       : null
   const latestTextTask = isTextToImageMode
-    ? retouchTasks.find((task) => task.createdAt >= textSessionStartedAt && task.inputImageIds.length === 0) ?? null
+    ? (retouchTasks.find((task) => task.createdAt >= textSessionStartedAt && task.inputImageIds.length === 0) ?? null)
     : null
   const latestTextTaskWithOutput = latestTextTask?.outputImages.length
     ? latestTextTask
     : isTextToImageMode
-      ? retouchTasks.find((task) =>
-        task.createdAt >= textSessionStartedAt &&
-        task.inputImageIds.length === 0 &&
-        task.outputImages.length > 0,
-      ) ?? null
+      ? (retouchTasks.find(
+          (task) =>
+            task.createdAt >= textSessionStartedAt && task.inputImageIds.length === 0 && task.outputImages.length > 0,
+        ) ?? null)
       : null
-  const selectedHistoryTask = selectedHistoryTaskId ? retouchTasks.find((task) => task.id === selectedHistoryTaskId) ?? null : null
+  const selectedHistoryTask = selectedHistoryTaskId
+    ? (retouchTasks.find((task) => task.id === selectedHistoryTaskId) ?? null)
+    : null
   const previewMode: RetouchPreviewMode = selectedHistoryTask
     ? 'history'
     : isTextToImageMode
-      ? latestTextTask || latestTextTaskWithOutput ? 'current' : 'empty'
+      ? latestTextTask || latestTextTaskWithOutput
+        ? 'current'
+        : 'empty'
       : hasCurrentInput
         ? 'current'
         : 'empty'
-  const visibleTask: TaskRecord | null = previewMode === 'history'
-    ? selectedHistoryTask
-    : previewMode === 'current'
-      ? isTextToImageMode
-        ? latestTextTaskWithOutput ?? latestTextTask
-        : latestTaskWithOutputForCurrentInput ?? latestTaskForCurrentInput
-      : null
+  const visibleTask: TaskRecord | null =
+    previewMode === 'history'
+      ? selectedHistoryTask
+      : previewMode === 'current'
+        ? isTextToImageMode
+          ? (latestTextTaskWithOutput ?? latestTextTask)
+          : (latestTaskWithOutputForCurrentInput ?? latestTaskForCurrentInput)
+        : null
   const visibleOutputTask: TaskRecord | null = visibleTask?.outputImages.length ? visibleTask : null
-  const inputPreview = previewMode === 'current' && isImageEditMode ? inputImages[0]?.dataUrl ?? null : null
-  const beforeImageId = visibleOutputTask?.inputImageIds[0] ?? (previewMode === 'current' && isImageEditMode ? currentInputIds[0] : null)
+  const inputPreview = previewMode === 'current' && isImageEditMode ? (inputImages[0]?.dataUrl ?? null) : null
+  const beforeImageId =
+    visibleOutputTask?.inputImageIds[0] ?? (previewMode === 'current' && isImageEditMode ? currentInputIds[0] : null)
   const outputImageId = visibleOutputTask?.outputImages[0] ?? null
   const beforeImageSrc = useCachedImageSource(beforeImageId, inputPreview)
   const outputImageSrc = useCachedImageSource(outputImageId)
   const outputSizePreset = useMemo(() => getOutputSizePreset(params.size), [params.size])
   // 保留用户指定的比例，避免档位切换时反复从规整后的像素反推而产生偏移。
-  const outputSizeRatio = selectedOutputRatio?.size === params.size
-    ? selectedOutputRatio.ratio
-    : outputSizePreset.ratio ?? getNearestOutputRatio(previewImageAspect)
+  const outputSizeRatio =
+    selectedOutputRatio?.size === params.size
+      ? selectedOutputRatio.ratio
+      : (outputSizePreset.ratio ?? getNearestOutputRatio(previewImageAspect))
   const outputSizeOptions = useMemo(
     () => [
       { id: 'auto' as const, label: '自动', hint: outputSizeHints.auto, value: 'auto' },
@@ -1145,47 +621,53 @@ export default function RetouchWorkspace() {
   )
   const activeOutputSizeId = outputSizePreset.id
   const hasPreviewImage = Boolean(outputImageSrc || beforeImageSrc)
-  const canCompare = Boolean(visibleOutputTask?.inputImageIds[0] && visibleOutputTask?.outputImages[0] && beforeImageSrc && outputImageSrc)
+  const canCompare = Boolean(
+    visibleOutputTask?.inputImageIds[0] && visibleOutputTask?.outputImages[0] && beforeImageSrc && outputImageSrc,
+  )
   const canUsePreviewZoom = hasPreviewImage && !(compareEnabled && canCompare)
   const previewTitle = outputImageSrc
-    ? previewMode === 'history' ? '历史结果' : isTextToImageMode ? '生成结果' : '修图结果'
-    : previewMode === 'history' ? '历史原图' : previewMode === 'current' ? isTextToImageMode ? '生成中' : '输入参考' : '空白画布'
+    ? previewMode === 'history'
+      ? '历史结果'
+      : isTextToImageMode
+        ? '生成结果'
+        : '修图结果'
+    : previewMode === 'history'
+      ? '历史原图'
+      : previewMode === 'current'
+        ? isTextToImageMode
+          ? '生成中'
+          : '输入参考'
+        : '空白画布'
   const previewEmptyHasHistorySelection = previewMode === 'history'
-  const currentStatusTask = previewMode === 'current' ? isTextToImageMode ? latestTextTask : latestTaskForCurrentInput : null
+  const currentStatusTask =
+    previewMode === 'current' ? (isTextToImageMode ? latestTextTask : latestTaskForCurrentInput) : null
   const selectedTemplates = selectedTemplateIds
     .map((id) => retouchTemplates.find((template) => template.id === id))
     .filter((template): template is RetouchTemplate => Boolean(template))
   const selectedConfigCount = selectedTemplates.length
-  const selectedTemplateSummary = selectedTemplates.length
-    ? selectedTemplates.map((template) => template.title).join(' + ')
-    : '自定义修图'
-  const currentWorkSummary = isTextToImageMode ? '文生图创作' : selectedTemplateSummary
-  const selectedCategory = retouchCategories.find((category) => category.id === selectedCategoryId) ?? retouchCategories[0]
-  const selectedStrength = strengthOptions.find((option) => option.id === selectedStrengthId) ?? strengthOptions[1]
-  const selectedTarget = targetOptions.find((option) => option.id === selectedTargetId) ?? targetOptions[0]
+  const selectedCategory =
+    retouchCategories.find((category) => category.id === selectedCategoryId) ?? retouchCategories[0]
   const categoryIds = categoryTemplateAliases[selectedCategoryId] ?? [selectedCategoryId]
   const categoryTemplates = retouchTemplates.filter((template) => categoryIds.includes(template.category))
-  const groupedCategoryTemplates = categoryTemplates.reduce<Array<{ group: string; templates: RetouchTemplate[] }>>((groups, template) => {
-    const group = template.group ?? selectedCategory.title
-    const current = groups.find((item) => item.group === group)
-    if (current) {
-      current.templates.push(template)
-    } else {
-      groups.push({ group, templates: [template] })
-    }
-    return groups
-  }, [])
-  const activeGroupName = selectedGroupName && groupedCategoryTemplates.some((group) => group.group === selectedGroupName)
-    ? selectedGroupName
-    : groupedCategoryTemplates[0]?.group ?? null
-  const activeGroupTemplates = groupedCategoryTemplates.find((group) => group.group === activeGroupName)?.templates ?? []
-  const getCategorySelectionCount = (categoryId: RetouchCategoryId) => {
-    const ids = categoryTemplateAliases[categoryId] ?? [categoryId]
-    return selectedTemplates.filter((template) => ids.includes(template.category)).length
-  }
-  const getGroupSelectionCount = (templates: RetouchTemplate[]) => (
-    templates.filter((template) => selectedTemplateIds.includes(template.id)).length
+  const groupedCategoryTemplates = categoryTemplates.reduce<Array<{ group: string; templates: RetouchTemplate[] }>>(
+    (groups, template) => {
+      const group = template.group ?? selectedCategory.title
+      const current = groups.find((item) => item.group === group)
+      if (current) {
+        current.templates.push(template)
+      } else {
+        groups.push({ group, templates: [template] })
+      }
+      return groups
+    },
+    [],
   )
+  const activeGroupName =
+    selectedGroupName === ALL_TEMPLATE_GROUPS ? ALL_TEMPLATE_GROUPS : selectedGroupName && groupedCategoryTemplates.some((group) => group.group === selectedGroupName)
+      ? selectedGroupName
+      : (groupedCategoryTemplates[0]?.group ?? null)
+  const activeGroupTemplates =
+    activeGroupName === ALL_TEMPLATE_GROUPS ? categoryTemplates : groupedCategoryTemplates.find((group) => group.group === activeGroupName)?.templates ?? []
   const setGeneratedPrompt = (nextPrompt: string) => {
     generatedPromptRef.current = nextPrompt
     promptManuallyEditedRef.current = false
@@ -1199,21 +681,18 @@ export default function RetouchWorkspace() {
     return currentPrompt === nextPrompt
   }
   const historyTasks = retouchTasks
-  const maskTargetInput = maskDraft ? inputImages.find((image) => image.id === maskDraft.targetImageId) ?? null : null
-  const referenceImages = maskTargetInput ? inputImages.filter((image) => image.id !== maskTargetInput.id) : inputImages
   const activeBaseUrl = activeProfile.baseUrl.trim()
   const requestBaseUrl = activeBaseUrl
     ? `${activeBaseUrl.replace(/\/+$/, '')}${activeBaseUrl.replace(/\/+$/, '').endsWith('/v1') ? '' : '/v1'}`
     : '未填写 API 地址'
   const previewImageFitStyle = useMemo<CSSProperties | undefined>(() => {
-    if (!previewImageAspect || previewImageAspect <= 0 || !previewStageSize.width || !previewStageSize.height) return undefined
+    if (!previewImageAspect || previewImageAspect <= 0 || !previewStageSize.width || !previewStageSize.height)
+      return undefined
     const stageAspect = previewStageSize.width / previewStageSize.height
-    const fitWidth = stageAspect > previewImageAspect
-      ? previewStageSize.height * previewImageAspect
-      : previewStageSize.width
-    const fitHeight = stageAspect > previewImageAspect
-      ? previewStageSize.height
-      : previewStageSize.width / previewImageAspect
+    const fitWidth =
+      stageAspect > previewImageAspect ? previewStageSize.height * previewImageAspect : previewStageSize.width
+    const fitHeight =
+      stageAspect > previewImageAspect ? previewStageSize.height : previewStageSize.width / previewImageAspect
 
     return {
       width: `${Math.max(1, Math.floor(fitWidth))}px`,
@@ -1230,9 +709,9 @@ export default function RetouchWorkspace() {
   }, [previewPan.x, previewPan.y, previewPanDragging, previewZoom])
   const handlePreviewImageMeasure = (aspectRatio: number) => {
     if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) return
-    setPreviewImageAspect((current) => (
-      current != null && Math.abs(current - aspectRatio) < 0.001 ? current : aspectRatio
-    ))
+    setPreviewImageAspect((current) =>
+      current != null && Math.abs(current - aspectRatio) < 0.001 ? current : aspectRatio,
+    )
   }
 
   useEffect(() => {
@@ -1243,16 +722,16 @@ export default function RetouchWorkspace() {
       const rect = node.getBoundingClientRect()
       const width = Math.max(0, Math.floor(rect.width))
       const height = Math.max(0, Math.floor(rect.height))
-      setPreviewStageSize((current) => (
-        current.width === width && current.height === height ? current : { width, height }
-      ))
+      setPreviewStageSize((current) =>
+        current.width === width && current.height === height ? current : { width, height },
+      )
     }
 
     updateSize()
     const observer = new ResizeObserver(updateSize)
     observer.observe(node)
     return () => observer.disconnect()
-  }, [])
+  }, [workspaceView, mobilePanel])
 
   useEffect(() => {
     setPreviewImageAspect(null)
@@ -1296,7 +775,11 @@ export default function RetouchWorkspace() {
   }, [canUsePreviewZoom, previewZoom])
 
   useEffect(() => {
-    if (groupedCategoryTemplates.length && !groupedCategoryTemplates.some((group) => group.group === selectedGroupName)) {
+    if (
+      groupedCategoryTemplates.length &&
+      selectedGroupName !== ALL_TEMPLATE_GROUPS &&
+      !groupedCategoryTemplates.some((group) => group.group === selectedGroupName)
+    ) {
       setSelectedGroupName(groupedCategoryTemplates[0].group)
     }
   }, [groupedCategoryTemplates, selectedGroupName])
@@ -1305,16 +788,13 @@ export default function RetouchWorkspace() {
     removeInputImage(index)
   }
 
-  const handleClearInputImages = () => {
-    clearInputImages()
-  }
-
   const toggleTemplate = (template: RetouchTemplate) => {
     const isRemoving = selectedTemplateIds.includes(template.id)
     // 一张成品只使用一种纸刊版式；普通修图功能仍可叠加。
-    const compatibleTemplateIds = template.composition === 'poster'
-      ? selectedTemplateIds.filter((id) => retouchTemplates.find((item) => item.id === id)?.composition !== 'poster')
-      : selectedTemplateIds
+    const compatibleTemplateIds =
+      template.composition === 'poster'
+        ? selectedTemplateIds.filter((id) => retouchTemplates.find((item) => item.id === id)?.composition !== 'poster')
+        : selectedTemplateIds
     const nextTemplateIds = isRemoving
       ? selectedTemplateIds.filter((id) => id !== template.id)
       : [...compatibleTemplateIds, template.id]
@@ -1322,17 +802,30 @@ export default function RetouchWorkspace() {
       .map((id) => retouchTemplates.find((item) => item.id === id))
       .filter((item): item is RetouchTemplate => Boolean(item))
 
-    setSelectedCategoryId(template.category)
+    const navigationCategory = retouchCategories.find((category) =>
+      (categoryTemplateAliases[category.id] ?? [category.id]).includes(template.category),
+    )
+    setSelectedCategoryId(navigationCategory?.id ?? template.category)
     setSelectedGroupName(template.group ?? template.category)
     setSelectedTemplateIds(nextTemplateIds)
     setGeneratedPrompt(buildStackedRetouchPrompt(nextTemplates, selectedStrengthId, selectedTargetId))
+    if (!isRemoving && (template.category === 'ecommerce' || template.category === 'xiaohongshu')) {
+      setGenerationMode(inputImages.length ? 'edit' : 'text')
+    }
     if (nextTemplates.length) setParams(mergeTemplateParams(nextTemplates))
+    if (!isRemoving) {
+      if (template.category !== 'ecommerce' && template.category !== 'xiaohongshu') setGenerationMode('edit')
+      setWorkspaceView('canvas')
+      setMobilePanel('compose')
+      if (guide.step !== null && guide.step <= 1) guide.go(2)
+      requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true }))
+    }
     showToast(
       isRemoving
         ? `已移除「${template.title}」`
         : template.composition === 'poster'
-        ? `已选用「${template.title}」纸刊版式`
-        : `已叠加「${template.title}」`,
+          ? `已选用「${template.title}」版式`
+          : `已叠加「${template.title}」`,
       'success',
     )
   }
@@ -1430,7 +923,10 @@ export default function RetouchWorkspace() {
   }
 
   const handlePreviewPanPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
-    if (previewPanStartRef.current.pointerId === event.pointerId && event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (
+      previewPanStartRef.current.pointerId === event.pointerId &&
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
     setPreviewPanDragging(false)
@@ -1454,6 +950,8 @@ export default function RetouchWorkspace() {
       const count = await loadFiles(files)
       if (count > 0) {
         setGenerationMode('edit')
+        setWorkspaceView('canvas')
+        setMobilePanel('preview')
         setSelectedHistoryTaskId(null)
         setCompareEnabled(false)
         showToast(`已添加 ${count} 张参考图，已切换为图生图修图`, 'success')
@@ -1475,6 +973,9 @@ export default function RetouchWorkspace() {
     }
     setSelectedHistoryTaskId(null)
     setCompareEnabled(false)
+    setWorkspaceView('canvas')
+    setMobilePanel('preview')
+    if (guide.step !== null) guide.finish(true)
     if (isTextToImageMode && textSessionStartedAt === 0) setTextSessionStartedAt(Date.now())
     void submitTask({ textToImage: isTextToImageMode })
   }
@@ -1501,256 +1002,396 @@ export default function RetouchWorkspace() {
   }
 
   const promptFieldLabel = isTextToImageMode ? '画面描述' : '修图要求'
-  const promptPlaceholder = isTextToImageMode
-    ? '直接描述要生成的画面、主体、风格、镜头、光线、构图和比例。例：商业棚拍质感的护肤品海报，白色背景，柔和侧光，干净高级。'
-    : '直接描述要修哪里、强度、必须保留什么。例：保留人物身份和镜框结构，去掉皮肤瑕疵，肤色更干净自然。'
   const submitLabel = apiIssue ? '连接 API' : isTextToImageMode ? '生成图像' : maskDraft ? '开始局部修图' : '开始修图'
-  const historyTitle = isTextToImageMode ? '生成历史' : '修图历史'
-  const currentPromptFallback = isTextToImageMode
-    ? '写清楚主体、场景、风格、构图、色彩、比例和不想出现的内容。'
-    : '先选择一个修图预设，或者在右侧输入框直接写修图要求。'
+
+  const isCreativeCategory = ['commerce', 'custom', 'aiNative', 'ecommerce', 'xiaohongshu'].includes(selectedCategoryId)
+  const filteredTemplates = (templateSearch.trim() ? categoryTemplates : activeGroupTemplates).filter((template) =>
+    `${template.title} ${template.scenario} ${template.group}`
+      .toLowerCase()
+      .includes(templateSearch.toLowerCase().trim()),
+  )
+  const selectCategory = (id: RetouchCategoryId) => {
+    setSelectedCategoryId(id)
+    setTemplateSearch('')
+    const ids = categoryTemplateAliases[id] ?? [id]
+    setSelectedGroupName(id === 'commerce' ? ALL_TEMPLATE_GROUPS : retouchTemplates.find((template) => ids.includes(template.category))?.group ?? null)
+    setWorkspaceView('library')
+    if (guide.step === 0) guide.go(1)
+    setShowMobileNav(false)
+  }
+  const applyExample = (template: RetouchTemplate) => {
+    if (!template.examplePrompt) return
+    setSelectedCategoryId(['ecommerce', 'xiaohongshu'].includes(template.category) ? 'commerce' : template.category)
+    setSelectedGroupName(template.group ?? null)
+    setSelectedTemplateIds([template.id])
+    setGeneratedPrompt(template.examplePrompt)
+    setParams(template.params)
+    setGenerationMode('text')
+    setSelectedHistoryTaskId(null)
+    setWorkspaceView('canvas')
+    setMobilePanel('compose')
+    if (guide.step !== null && guide.step <= 1) guide.go(2)
+    showToast(`已填入「${template.exampleTitle ?? template.title}」，可以修改后生成`, 'success')
+    requestAnimationFrame(() => promptRef.current?.focus())
+  }
+  const changeView = (value: string) => {
+    setWorkspaceView(value as 'library' | 'canvas')
+    if (value === 'library' && guide.step === 0) guide.go(1)
+  }
+  const chooseTemplate = (template: RetouchTemplate) => {
+    if (isUserTemplate(template)) {
+      setSelectedTemplateIds([template.id])
+      setSelectedCategoryId('custom')
+      setGeneratedPrompt(template.prompt)
+      if (Object.keys(template.params).length) setParams(template.params)
+      setGenerationMode(template.generationMode)
+      setSelectedHistoryTaskId(null)
+      setWorkspaceView('canvas')
+      setMobilePanel('compose')
+      requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true }))
+      showToast(`已应用「${template.title}」`, 'success')
+      return
+    }
+    if (!selectedTemplateIds.includes(template.id)) { toggleTemplate(template); return }
+    setWorkspaceView('canvas'); setMobilePanel('compose')
+    if (guide.step !== null && guide.step <= 1) guide.go(2)
+    requestAnimationFrame(() => promptRef.current?.focus({ preventScroll: true }))
+  }
+  const changeOutputDrawer = (open: boolean) => {
+    setShowOutputDrawer(open)
+    if (!open && guide.step === 3) guide.go(4)
+  }
+  const guideAction = () => {
+    if (guide.step === 0) { selectCategory('commerce'); guide.go(1) }
+    else if (guide.step === 1) {
+      const example = filteredTemplates[0]
+      if (example?.examplePrompt) applyExample(example)
+      else if (example) chooseTemplate(example)
+    } else if (guide.step === 2) { guide.go(3) }
+    else if (guide.step === 3) changeOutputDrawer(true)
+    else guide.finish(true)
+  }
+  const visibleHistory = historyTasks.filter((task) => historyFilter === 'all' || task.status === historyFilter)
+  const openTemplateEditor = (trigger: HTMLElement, template?: UserTemplate) => {
+    templateTriggerRef.current = trigger
+    setTemplateEditor({ template })
+  }
+  const deleteTemplate = (template: UserTemplate) => setConfirmDialog({
+    title: '删除模板', message: `确定删除「${template.title}」吗？已经生成的作品会继续保留。`,
+    tone: 'danger', confirmText: '删除模板', action: () => {
+      try {
+        useUserTemplates.getState().remove(template.id)
+        setSelectedTemplateIds((ids) => ids.filter((id) => id !== template.id))
+        showToast('模板已删除', 'success')
+      } catch (error) { showToast(error instanceof Error ? error.message : '删除失败，请重试。', 'error') }
+    },
+  })
+  const nav = (
+    <>
+      <button className="studio-brand" onClick={() => selectCategory('aiNative')} aria-label="AIPic 首页">
+        <span className="studio-brand-icon">
+          <Sparkles size={23} strokeWidth={1.7} />
+        </span>
+        <span>
+          AIPic<small>创意图像工作室</small>
+        </span>
+      </button>
+      <div className="studio-nav-label">创作空间</div>
+      <nav className="studio-nav" aria-label="创作工具">
+        {retouchCategories.slice(0, 3).map((category) => {
+          const Icon = category.icon
+          return (
+            <button
+              key={category.id}
+              aria-label={category.title}
+              className={selectedCategoryId === category.id ? 'is-active' : ''}
+              onClick={() => selectCategory(category.id)}
+              aria-current={selectedCategoryId === category.id ? 'page' : undefined}
+            >
+              <Icon className="studio-nav-icon" aria-hidden="true" />
+              <span>{category.title}</span>
+              {category.id === 'commerce' ? <span className="studio-nav-new" aria-hidden="true">NEW</span> : category.id === 'custom' ? <span className="studio-nav-count">{userTemplates.length}</span> : <ChevronRight size={14} className="studio-nav-chevron" />}
+            </button>
+          )
+        })}
+      </nav>
+      <details className="studio-retouch-nav" open={!isCreativeCategory || undefined}>
+        <summary>
+          <ScanFace size={18} />
+          <span>照片精修</span>
+          <ChevronDown size={15} />
+        </summary>
+        <nav aria-label="精修工具">
+          {retouchCategories.slice(3).map((category) => (
+            <button
+              key={category.id}
+              className={selectedCategoryId === category.id ? 'is-active' : ''}
+              onClick={() => selectCategory(category.id)}
+              aria-current={selectedCategoryId === category.id ? 'page' : undefined}
+            >
+              {category.title}
+              <span>
+                {
+                  retouchTemplates.filter((t) =>
+                    (categoryTemplateAliases[category.id] ?? [category.id]).includes(t.category),
+                  ).length
+                }
+              </span>
+            </button>
+          ))}
+        </nav>
+      </details>
+      <div className="studio-nav-divider" />
+      <div className="studio-nav-label">我的空间</div>
+      <nav className="studio-nav" aria-label="工作区">
+        <button
+          onClick={() => {
+            setShowMobileNav(false)
+            setShowHistory(true)
+          }}
+        >
+          <History size={18} />
+          <span>创作历史</span>
+          <span className="studio-nav-count">{retouchTasks.length}</span>
+        </button>
+        <button onClick={() => { setShowMobileNav(false); useStore.getState().setAppMode('agent') }}>
+          <MessageSquare size={18} />
+          <span>AI 助手</span>
+          <ArrowUpRight size={14} className="studio-nav-chevron" />
+        </button>
+      </nav>
+      <div className="studio-nav-bottom">
+        <div className="studio-local-note">
+          <span className="studio-status-dot" />
+          作品保存在本机 · v{__APP_VERSION__}
+        </div>
+        <button
+          className="studio-connection"
+          onClick={() => {
+            setShowMobileNav(false)
+            setShowSettings(true, 'api')
+          }}
+          title={requestBaseUrl}
+        >
+          <span className="studio-connection-symbol">
+            <Settings2 size={18} />
+          </span>
+          <span>
+            <strong>{apiIssue ? '连接你的模型' : activeProfile.name}</strong>
+            <small>{apiIssue ? '配置 API 后开始生成' : activeProfile.model}</small>
+          </span>
+          <ChevronRight size={15} />
+        </button>
+      </div>
+    </>
+  )
 
   return (
-    <section data-no-drag-select aria-label="AIPic 图像工作室" className="retouch-workspace safe-area-x">
-      <div className="retouch-studio-shell">
-        <div className="retouch-studio-body">
-          <aside className="retouch-workflow-panel">
-            <button type="button" className="retouch-api-card" onClick={() => setShowSettings(true, 'api')} title={requestBaseUrl} aria-label={`当前模型 ${activeProfile.model || '未设置'}，打开 API 设置`}>
-              <div>
-                <span>当前模型</span>
-                <strong className="retouch-api-url">{activeProfile.model || '选择模型'}</strong>
-                <small>{apiIssue ? '完成连接后开始创作' : getApiDisplayLabel(requestBaseUrl)}</small>
-              </div>
-              <SettingsIcon className="h-4 w-4" aria-hidden="true" />
-            </button>
-
-            <div className="retouch-left-body">
-              <nav className="retouch-primary-menu" aria-label="修图工具">
-                <div className="retouch-primary-title">
-                  <span>工具</span>
-                  <strong>{selectedConfigCount ? `已选 ${selectedConfigCount} 项` : '探索'}</strong>
+    <section data-no-drag-select aria-label="AIPic 图像工作室" className="studio-app">
+      <aside className="studio-sidebar">{nav}</aside>
+      <div className="studio-main" data-view={workspaceView} data-mobile-panel={mobilePanel}>
+        <header className="studio-topbar">
+          <StudioButton ref={navButtonRef} tone="ghost" className="studio-mobile-menu" onClick={() => setShowMobileNav(true)} aria-label="打开导航"><Menu size={18} /></StudioButton>
+          <strong className="studio-workspace-title">图像工作台</strong>
+          <StudioTabs value={workspaceView} onValueChange={changeView} className="studio-workspace-tabs" tabs={[
+            { value: 'canvas', label: <span className="studio-tab-label"><Frame size={14} />工作区</span> },
+            { value: 'library', label: <span data-guide="templates" className="studio-tab-label"><Grid2X2 size={14} />选择模板</span> },
+          ]} />
+          <div className="studio-topbar-actions">
+            <StudioButton tone="ghost" onClick={() => { setWorkspaceView('canvas'); setShowMobileNav(false); guide.start() }} aria-label="使用指南" title="新手引导"><CircleHelp size={16} /><span className="studio-action-label">使用指南</span></StudioButton>
+            <StudioButton ref={historyButtonRef} tone="ghost" onClick={() => setShowHistory(true)} aria-label="打开创作历史"><History size={16} /><span className="studio-action-label">历史</span></StudioButton>
+            <StudioButton tone="ghost" onClick={() => setShowSettings(true, 'api')} aria-label="打开 API 设置"><Settings2 size={16} /></StudioButton>
+            <button className="studio-version" aria-label={`当前版本 ${__APP_VERSION__}，检查更新`} title={`构建 ${__APP_BUILD_ID__}`} onClick={() => window.dispatchEvent(new Event('aipic:check-version'))}>v{__APP_VERSION__}</button>
+          </div>
+        </header>
+        <div className="studio-body">
+          <div className="studio-content">
+            <section className="studio-library" data-category={selectedCategoryId} hidden={workspaceView !== 'library'} aria-label="模板库">
+              <div className="studio-library-heading">
+                <div><h1>{selectedCategory.title}<Badge variant="secondary">{categoryTemplates.length}</Badge></h1><p>点选模板，立即进入工作区编辑</p></div>
+                <div className="studio-library-tools"><Input size="sm" aria-label="搜索模板" placeholder="搜索模板" value={templateSearch} onValueChange={setTemplateSearch} />
+                  <StudioButton ref={newTemplateButtonRef} tone="primary" onClick={(event) => openTemplateEditor(event.currentTarget)}><Plus size={14} />新建模板</StudioButton>
+                  <StudioButton tone="ghost" onClick={() => setWorkspaceView('canvas')}>返回工作区<ArrowRight size={14} /></StudioButton>
                 </div>
-                <div className="retouch-category-grid">
-                  {retouchCategories.map((category) => {
-                    const Icon = category.icon
-                    const active = selectedCategoryId === category.id
-                    const selectedCount = getCategorySelectionCount(category.id)
-                    return (
+              </div>
+              {groupedCategoryTemplates.length > 1 && (
+                <div className="studio-filter-tabs" role="group" aria-label="模板分组">
+                  {selectedCategoryId === 'commerce' && <button aria-pressed={activeGroupName === ALL_TEMPLATE_GROUPS} onClick={() => { setSelectedGroupName(ALL_TEMPLATE_GROUPS); setTemplateSearch('') }}>全部</button>}
+                  {groupedCategoryTemplates.map((group) => (
+                    <button
+                      key={group.group}
+                      aria-pressed={activeGroupName === group.group}
+                      onClick={() => {
+                        setSelectedGroupName(group.group)
+                        setTemplateSearch('')
+                      }}
+                    >
+                      {group.group}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className={`studio-template-grid ${isCreativeCategory ? '' : 'is-retouch-grid'}`}>
+                {filteredTemplates.map((template) => {
+                  const selected = selectedTemplateIds.includes(template.id)
+                  return (
+                    <article data-guide="template-card" key={template.id} aria-labelledby={`template-title-${template.id}`} className={`studio-template ${selected ? 'is-selected' : ''}`}>
                       <button
-                        key={category.id}
-                        type="button"
-                        className={`retouch-category-button ${active ? 'is-active' : ''}`}
-                        aria-label={`${category.title}${category.id === 'aiNative' ? '，新增纸刊海报预设' : ''}${selectedCount ? `，已选 ${selectedCount} 项` : ''}`}
-                        aria-pressed={active}
-                        onClick={() => {
-                          setSelectedCategoryId(category.id)
-                          const ids = categoryTemplateAliases[category.id] ?? [category.id]
-                          const firstTemplate = retouchTemplates.find((template) => ids.includes(template.category))
-                          setSelectedGroupName(firstTemplate?.group ?? null)
-                        }}
+                        className="studio-template-art-button"
+                        aria-label={`选择${template.title}`}
+                        aria-pressed={selected}
+                        onClick={() => chooseTemplate(template)}
                       >
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                        <span className="retouch-category-copy">
-                          <span className="retouch-category-title">
-                            <span className="retouch-category-name">{category.shortTitle}</span>
-                            {category.id === 'aiNative' && <span className="retouch-new-badge" aria-hidden="true">NEW</span>}
+                        <TemplateArtwork template={template} />
+                        {selected && (
+                          <span className="studio-template-check">
+                            <Check size={15} />
                           </span>
-                          <small className="retouch-category-summary">{category.summary}</small>
-                        </span>
-                        {selectedCount > 0 && <span className="retouch-category-count">{selectedCount}</span>}
+                        )}
                       </button>
-                    )
-                  })}
-                </div>
-              </nav>
-
-              <div className="retouch-secondary-menu">
-                <div className="retouch-secondary-head">
-                  <div>
-                    <span>创作工具</span>
-                    <strong>{selectedCategory.title}</strong>
-                  </div>
-                  <small>{selectedCategory.summary}</small>
-                </div>
-
-                <div className="retouch-template-list">
-                  <div className="retouch-group-tabs" role="group" aria-label="小功能分组">
-                    {groupedCategoryTemplates.map((group) => {
-                      const groupSelectedCount = getGroupSelectionCount(group.templates)
-                      return (
-                        <button
-                          key={group.group}
-                          type="button"
-                          className={activeGroupName === group.group ? 'is-active' : ''}
-                          aria-pressed={activeGroupName === group.group}
-                          onClick={() => setSelectedGroupName(group.group)}
-                        >
-                          <span>{group.group}</span>
-                          {groupSelectedCount > 0 && <strong>{groupSelectedCount}</strong>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="retouch-template-group">
-                    <div className="retouch-template-group-title">{activeGroupName}</div>
-                    <div className="retouch-template-chip-grid">
-                      {activeGroupTemplates.map((template) => {
-                        const isSelected = selectedTemplateIds.includes(template.id)
-                        return (
-                          <button
-                            key={template.id}
-                            type="button"
-                            className={`retouch-template-card ${isSelected ? 'is-active' : ''}`}
-                            onClick={() => toggleTemplate(template)}
-                            title={template.scenario}
-                            aria-pressed={isSelected}
-                          >
-                            <span className="retouch-template-card-title">
-                              {template.composition === 'poster' && (
-                                <span className="retouch-template-card-icon">
-                                  <StudioSymbol name={template.id === 'editorial-photo-echo' ? 'panels' : template.id === 'editorial-quiet-zine' ? 'minimal' : 'collage'} className="h-5 w-5" />
-                                </span>
-                              )}
-                              <strong>{template.title}</strong>
-                              {isSelected && <span className="retouch-selected-mark">已选</span>}
-                            </span>
-                            <small>{template.scenario}</small>
+                      <div className="studio-template-info">
+                        <div>
+                          <h2 id={`template-title-${template.id}`}><button title={template.title} onClick={() => chooseTemplate(template)}>{template.title}</button></h2>
+                          <span>{template.params.size ? template.params.size.replace('x', ' × ') : '自适应画幅'}</span>
+                        </div>
+                        <p>{template.scenario}</p>
+                        <div className="studio-template-actions">
+                          <StudioButton tone="primary" size="sm" onClick={() => chooseTemplate(template)}>使用模板<ArrowRight size={13} /></StudioButton>
+                        {template.examplePrompt && (
+                          <button className="studio-example-button" onClick={() => applyExample(template)}>
+                            <SquarePen size={14} />
+                            填入示例
+                            <ArrowRight size={14} />
                           </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="retouch-section-heading">
-                  <span>调整</span>
-                  <strong>{selectedStrength.label} · {selectedTarget.label}</strong>
-                </div>
-                <div className="retouch-option-panel">
-                    <div className="retouch-option-row">
-                      <span>强度</span>
-                      <div>
-                        {strengthOptions.map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            className={selectedStrengthId === option.id ? 'is-active' : ''}
-                            aria-pressed={selectedStrengthId === option.id}
-                            onClick={() => applyStrength(option.id)}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
+                        )}
+                        {isUserTemplate(template) && <div className="studio-template-manage">
+                          <button aria-label={`编辑模板：${template.title}`} title="编辑模板" onClick={(event) => openTemplateEditor(event.currentTarget, template)}><SquarePen size={14} /></button>
+                          <button aria-label={`删除模板：${template.title}`} title="删除模板" onClick={() => deleteTemplate(template)}><Trash2 size={14} /></button>
+                        </div>}
+                        </div>
                       </div>
-                    </div>
-                    <div className="retouch-option-row">
-                      <span>对象</span>
-                      <div>
-                        {targetOptions.map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            className={selectedTargetId === option.id ? 'is-active' : ''}
-                            aria-pressed={selectedTargetId === option.id}
-                            onClick={() => applyTarget(option.id)}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    </article>
+                  )
+                })}
+              </div>
+              {!filteredTemplates.length && (
+                <div className="studio-search-empty">
+                  <Search size={26} />
+                  <strong>{selectedCategoryId === 'custom' && !userTemplates.length ? '你的创作方式，也可以成为模板' : '没有找到这个模板'}</strong>
+                  <span>{selectedCategoryId === 'custom' && !userTemplates.length ? '保存常用提示词，下次选中就能开始。' : '试试其他关键词，或清空搜索。'}</span>
+                  {selectedCategoryId === 'custom' && !userTemplates.length ? <StudioButton tone="primary" onClick={(event) => openTemplateEditor(event.currentTarget)}>新建第一份模板<Plus size={14} /></StudioButton> : <StudioButton onClick={() => setTemplateSearch('')}>查看全部</StudioButton>}
                 </div>
+              )}
+              <div className="studio-library-footnote">
+                <Sparkles size={14} />
+                <span>
+                  {selectedCategoryId === 'commerce'
+                    ? '上传真实商品图，可更好地保留包装、标志与产品细节。'
+                    : selectedCategoryId === 'custom'
+                      ? '你的模板保存在本机浏览器，可以随时编辑和复用。'
+                      : '预设可以自由组合。选中后，在工作区继续完善你的创作要求。'}
+                </span>
               </div>
-            </div>
-          </aside>
-
-          <main className="retouch-preview-panel">
-            <div className="retouch-preview-toolbar">
-              <div>
-                <span>画布</span>
-                <strong>{previewTitle}</strong>
-              </div>
-              <div className="retouch-preview-actions">
-                <div className="retouch-zoom-control" role="group" aria-label="预览缩放">
+            </section>
+            <section className="studio-canvas" hidden={workspaceView !== 'canvas'} aria-label="工作区画布">
+              <div className="studio-workflow-line"><span>{selectedTemplates.length ? `已应用：${selectedTemplates.map(t => t.title).join(' + ')}` : '自由创作 · 可选模板，也可直接描述'}</span><StudioButton tone="ghost" onClick={() => changeView('library')}>{selectedTemplates.length ? '更换模板' : '选择模板'}<Grid2X2 size={13} /></StudioButton></div>
+              <div className="studio-canvas-toolbar">
+                <div className="studio-tool-group">
+                  <StudioButton
+                    tone="ghost"
+                    onClick={() => applyPreviewZoom(Math.max(1, previewZoom - 0.25))}
+                    disabled={!canUsePreviewZoom}
+                    aria-label="缩小预览"
+                  >
+                    <Minus size={16} />
+                  </StudioButton>
                   <button
-                    type="button"
-                    className={Math.abs(previewZoom - 1) < 0.01 ? 'is-active' : ''}
-                    aria-pressed={Math.abs(previewZoom - 1) < 0.01}
+                    className="studio-zoom-label"
                     onClick={() => applyPreviewZoom(1)}
                     disabled={!canUsePreviewZoom}
+                    title="恢复适应画布"
                   >
-                    适应
+                    {Math.round(previewZoom * 100)}%
                   </button>
-                  <input
-                    type="range"
-                    min={previewZoomMin}
-                    max={previewZoomMax}
-                    step={0.01}
-                    value={previewZoom}
-                    onChange={(event) => applyPreviewZoom(Number(event.target.value))}
+                  <StudioButton
+                    tone="ghost"
+                    onClick={() => applyPreviewZoom(Math.min(4, previewZoom + 0.25))}
                     disabled={!canUsePreviewZoom}
-                    aria-label="无级缩放"
-                  />
-                  <span>{previewZoom > 1 ? `${Math.round(previewZoom * 100)}%` : '100%'}</span>
+                    aria-label="放大预览"
+                  >
+                    <Plus size={16} />
+                  </StudioButton>
                 </div>
-                <button
-                  type="button"
-                  className={`retouch-tool-button ${compareEnabled && canCompare ? 'is-active' : ''}`}
-                  onClick={handleCompareToggle}
-                  aria-pressed={compareEnabled && canCompare}
-                  title="对比原图与结果"
-                >
-                  <StudioSymbol name="compare" className="h-4 w-4" />
-                  <span>对比</span>
-                </button>
-                <button type="button" className="retouch-tool-button" onClick={handleMaskEdit} title="涂抹需要修改的区域">
-                  <EditIcon className="h-4 w-4" aria-hidden="true" />
-                  <span>局部</span>
-                </button>
-                <button type="button" className="retouch-tool-button" onClick={openVisibleOutput} disabled={!visibleTask?.outputImages.length} title="查看完整输出图">
-                  <StudioSymbol name="expand" className="h-4 w-4" />
-                  <span>放大</span>
-                </button>
+                <div className="studio-tool-group">
+                  <StudioButton
+                    tone="ghost"
+                    onClick={handleCompareToggle}
+                    disabled={!canCompare}
+                    aria-pressed={compareEnabled && canCompare}
+                  >
+                    <Layers size={16} />
+                    对比
+                  </StudioButton>
+                  <StudioButton
+                    tone="ghost"
+                    onClick={handleMaskEdit}
+                    disabled={isTextToImageMode || !inputImages.length}
+                  >
+                    <Scissors size={16} />
+                    局部
+                  </StudioButton>
+                  <StudioButton
+                    tone="ghost"
+                    onClick={openVisibleOutput}
+                    disabled={!outputImageId}
+                    aria-label="全屏预览"
+                  >
+                    <Focus size={16} />
+                  </StudioButton>
+                  <StudioButton
+                    tone="ghost"
+                    disabled={!visibleTask?.outputImages.length}
+                    aria-label="下载输出图片"
+                    onClick={async () => {
+                      if (!visibleTask?.outputImages.length) return
+                      const result = await downloadImageIds(visibleTask.outputImages, 'aipic')
+                      showToast(
+                        result.failCount
+                          ? `已下载 ${result.successCount} 张，${result.failCount} 张下载失败`
+                          : `已下载 ${result.successCount} 张`,
+                        result.failCount ? 'info' : 'success',
+                      )
+                    }}
+                  >
+                    <ArrowDownToLine size={16} />
+                  </StudioButton>
+                </div>
               </div>
-            </div>
-
-            <div
-              className={`retouch-preview-frame ${isDraggingUpload ? 'is-dragging' : ''}`}
-              onDragOver={(event) => {
-                event.preventDefault()
-                setIsDraggingUpload(true)
-              }}
-              onDragLeave={() => setIsDraggingUpload(false)}
-              onDrop={(event) => {
-                event.preventDefault()
-                setIsDraggingUpload(false)
-                void handleFiles(event.dataTransfer.files)
-              }}
-            >
-              <div ref={previewStageRef} className={`retouch-preview-stage ${compareEnabled && canCompare ? 'is-comparing' : ''}`}>
-                {compareEnabled && canCompare && outputImageSrc && beforeImageSrc ? (
-                  <div className="retouch-compare-plane">
-                    <div className="retouch-image-plane">
-                      <div className="retouch-image-fit-box" style={previewImageFitStyle}>
-                        <img
-                          className="retouch-preview-image"
-                          src={outputImageSrc}
-                          alt="修图后"
-                          style={undefined}
-                          onLoad={(event) => {
-                            const image = event.currentTarget
-                            handlePreviewImageMeasure(image.naturalWidth / Math.max(image.naturalHeight, 1))
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="retouch-compare-before" style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}>
+              <div
+                className={`retouch-preview-frame studio-canvas-frame ${isDraggingUpload ? 'is-dragging' : ''}`}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  setIsDraggingUpload(true)
+                }}
+                onDragLeave={() => setIsDraggingUpload(false)}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  setIsDraggingUpload(false)
+                  void handleFiles(event.dataTransfer.files)
+                }}
+              >
+                <div
+                  ref={previewStageRef}
+                  className={`retouch-preview-stage ${compareEnabled && canCompare ? 'is-comparing' : ''}`}
+                >
+                  {compareEnabled && canCompare && outputImageSrc && beforeImageSrc ? (
+                    <div className="retouch-compare-plane">
                       <div className="retouch-image-plane">
                         <div className="retouch-image-fit-box" style={previewImageFitStyle}>
                           <img
                             className="retouch-preview-image"
-                            src={beforeImageSrc}
-                            alt="修图前"
+                            src={outputImageSrc}
+                            alt="修图后"
                             style={undefined}
                             onLoad={(event) => {
                               const image = event.currentTarget
@@ -1759,383 +1400,657 @@ export default function RetouchWorkspace() {
                           />
                         </div>
                       </div>
+                      <div
+                        className="retouch-compare-before"
+                        style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
+                      >
+                        <div className="retouch-image-plane">
+                          <div className="retouch-image-fit-box" style={previewImageFitStyle}>
+                            <img
+                              className="retouch-preview-image"
+                              src={beforeImageSrc}
+                              alt="修图前"
+                              style={undefined}
+                              onLoad={(event) => {
+                                const image = event.currentTarget
+                                handlePreviewImageMeasure(image.naturalWidth / Math.max(image.naturalHeight, 1))
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <span className="retouch-compare-label is-before">原图</span>
+                      <span className="retouch-compare-label is-after">修图后</span>
+                      <button
+                        type="button"
+                        className="retouch-compare-handle"
+                        style={{ left: `${comparePosition}%` }}
+                        role="slider"
+                        aria-label="原图与结果对比位置"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(comparePosition)}
+                        aria-valuetext={`原图显示 ${Math.round(comparePosition)}%`}
+                        onKeyDown={(event) => {
+                          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                            event.preventDefault()
+                            setComparePosition((position) =>
+                              Math.min(100, Math.max(0, position + (event.key === 'ArrowRight' ? 5 : -5))),
+                            )
+                          } else if (event.key === 'Home' || event.key === 'End') {
+                            event.preventDefault()
+                            setComparePosition(event.key === 'Home' ? 0 : 100)
+                          }
+                        }}
+                        onPointerDown={handleComparePointerDown}
+                        onPointerMove={handleComparePointerMove}
+                        onPointerUp={handleComparePointerEnd}
+                        onPointerCancel={handleComparePointerEnd}
+                      >
+                        <span />
+                      </button>
                     </div>
-                    <span className="retouch-compare-label is-before">原图</span>
-                    <span className="retouch-compare-label is-after">修图后</span>
-                    <button
-                      type="button"
-                      className="retouch-compare-handle"
-                      style={{ left: `${comparePosition}%` }}
-                      role="slider"
-                      aria-label="原图与结果对比位置"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.round(comparePosition)}
-                      aria-valuetext={`原图显示 ${Math.round(comparePosition)}%`}
-                      onKeyDown={(event) => {
-                        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-                          event.preventDefault()
-                          setComparePosition((position) => Math.min(100, Math.max(0, position + (event.key === 'ArrowRight' ? 5 : -5))))
-                        } else if (event.key === 'Home' || event.key === 'End') {
-                          event.preventDefault()
-                          setComparePosition(event.key === 'Home' ? 0 : 100)
-                        }
-                      }}
-                      onPointerDown={handleComparePointerDown}
-                      onPointerMove={handleComparePointerMove}
-                      onPointerUp={handleComparePointerEnd}
-                      onPointerCancel={handleComparePointerEnd}
+                  ) : outputImageSrc ? (
+                    <div
+                      className="retouch-preview-pan-layer"
+                      style={{ touchAction: previewZoom > 1 ? 'none' : 'pan-y pinch-zoom' }}
+                      onWheel={handlePreviewWheel}
+                      onPointerDown={handlePreviewPanPointerDown}
+                      onPointerMove={handlePreviewPanPointerMove}
+                      onPointerUp={handlePreviewPanPointerEnd}
+                      onPointerCancel={handlePreviewPanPointerEnd}
                     >
-                      <span />
-                    </button>
-                  </div>
-                ) : outputImageSrc ? (
-                  <div
-                    className="retouch-preview-pan-layer"
-                    style={{ touchAction: previewZoom > 1 ? 'none' : 'pan-y pinch-zoom' }}
-                    onWheel={handlePreviewWheel}
-                    onPointerDown={handlePreviewPanPointerDown}
-                    onPointerMove={handlePreviewPanPointerMove}
-                    onPointerUp={handlePreviewPanPointerEnd}
-                    onPointerCancel={handlePreviewPanPointerEnd}
-                  >
-                    <RetouchPreviewImage
-                      src={outputImageSrc}
-                      alt="修图结果"
-                      fitStyle={previewImageFitStyle}
-                      imageStyle={previewImageTransformStyle}
-                      onImageMeasure={handlePreviewImageMeasure}
+                      <RetouchPreviewImage
+                        src={outputImageSrc}
+                        alt="修图结果"
+                        fitStyle={previewImageFitStyle}
+                        imageStyle={previewImageTransformStyle}
+                        onImageMeasure={handlePreviewImageMeasure}
+                      />
+                    </div>
+                  ) : beforeImageSrc ? (
+                    <div
+                      className="retouch-preview-pan-layer"
+                      style={{ touchAction: previewZoom > 1 ? 'none' : 'pan-y pinch-zoom' }}
+                      onWheel={handlePreviewWheel}
+                      onPointerDown={handlePreviewPanPointerDown}
+                      onPointerMove={handlePreviewPanPointerMove}
+                      onPointerUp={handlePreviewPanPointerEnd}
+                      onPointerCancel={handlePreviewPanPointerEnd}
+                    >
+                      <RetouchPreviewImage
+                        src={beforeImageSrc}
+                        alt="修图预览"
+                        fitStyle={previewImageFitStyle}
+                        imageStyle={previewImageTransformStyle}
+                        onImageMeasure={handlePreviewImageMeasure}
+                      />
+                    </div>
+                  ) : (
+                    <RetouchPreviewEmpty
+                      hasHistorySelection={previewEmptyHasHistorySelection}
+                      generationMode={generationMode}
+                      onUpload={() => fileInputRef.current?.click()}
+                      onDescribe={() => { setMobilePanel('compose'); requestAnimationFrame(() => promptRef.current?.focus()) }}
+                    onBrowse={() => changeView('library')}
+                    onExample={(id) => { const template = retouchTemplates.find(t => t.id === id); if (template) applyExample(template) }}
                     />
+                  )}
+                </div>
+                {currentStatusTask?.status === 'running' && (
+                  <div className="retouch-running-badge" role="status">
+                    <span className="retouch-progress-dot" aria-hidden="true" />
+                    正在生成
                   </div>
-                ) : beforeImageSrc ? (
-                  <div
-                    className="retouch-preview-pan-layer"
-                    style={{ touchAction: previewZoom > 1 ? 'none' : 'pan-y pinch-zoom' }}
-                    onWheel={handlePreviewWheel}
-                    onPointerDown={handlePreviewPanPointerDown}
-                    onPointerMove={handlePreviewPanPointerMove}
-                    onPointerUp={handlePreviewPanPointerEnd}
-                    onPointerCancel={handlePreviewPanPointerEnd}
+                )}
+                {visibleTask?.status === 'error' && (
+                  <div className="retouch-error-badge" role="status">
+                    生成失败
+                  </div>
+                )}
+                {hasPreviewImage && (
+                  <div className="retouch-fit-badge">
+                    {previewZoom > 1 ? `${Math.round(previewZoom * 100)}%` : '完整显示'}
+                  </div>
+                )}
+                {hasPreviewImage && (
+                  <button
+                    type="button"
+                    className="retouch-preview-upload-float"
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <RetouchPreviewImage
-                      src={beforeImageSrc}
-                      alt="修图预览"
-                      fitStyle={previewImageFitStyle}
-                      imageStyle={previewImageTransformStyle}
-                      onImageMeasure={handlePreviewImageMeasure}
-                    />
-                  </div>
-                ) : (
-                  <RetouchPreviewEmpty
-                    hasHistorySelection={previewEmptyHasHistorySelection}
-                    generationMode={generationMode}
-                    onUpload={() => fileInputRef.current?.click()}
-                  />
+                    <PhotoIcon className="h-4 w-4" aria-hidden="true" />
+                    添加照片
+                  </button>
                 )}
               </div>
-              {currentStatusTask?.status === 'running' && <div className="retouch-running-badge" role="status"><span className="retouch-progress-dot" aria-hidden="true" />正在生成</div>}
-              {visibleTask?.status === 'error' && <div className="retouch-error-badge" role="status">生成失败</div>}
-              {hasPreviewImage && <div className="retouch-fit-badge">{previewZoom > 1 ? `${Math.round(previewZoom * 100)}%` : '完整显示'}</div>}
-              {hasPreviewImage && (
-                <button
-                  type="button"
-                  className="retouch-preview-upload-float"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <PhotoIcon className="h-4 w-4" aria-hidden="true" />
-                  添加照片
-                </button>
+              {visibleTask?.error && (
+                <div className="studio-task-error" role="status">
+                  <strong>这次生成未完成</strong>
+                  <p>{visibleTask.error}</p>
+                  <StudioButton tone="ghost" onClick={() => useStore.getState().setDetailTaskId(visibleTask.id)}>
+                    查看任务详情
+                    <ArrowUpRight size={14} />
+                  </StudioButton>
+                </div>
               )}
-            </div>
-          </main>
-
+              {!!visibleTask?.outputImages.length && (
+                <div className="studio-output-strip">
+                  {visibleTask.outputImages.map((id, i) => (
+                    <OutputImage key={id} imageId={id} imageList={visibleTask.outputImages} label={`输出图 ${i + 1}`} />
+                  ))}
+                </div>
+              )}
+              <div className="studio-canvas-footer">
+                <span>
+                  {currentStatusTask?.status === 'running'
+                    ? '模型正在创作，请稍候'
+                    : visibleTask
+                      ? `${formatStatus(visibleTask.status)} · ${formatElapsed(visibleTask.elapsed)}`
+                      : '上传参考图，或直接描述你的想法'}
+                </span>
+                <button onClick={() => setWorkspaceView('library')}>
+                  返回模板库
+                  <ArrowUpRight size={13} />
+                </button>
+              </div>
+            </section>
+          </div>
           <aside
-            className={`retouch-control-panel ${isDraggingUpload ? 'is-dragging' : ''} ${showSettings ? 'is-muted' : ''}`}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setIsDraggingUpload(true)
-            }}
-            onDragLeave={() => setIsDraggingUpload(false)}
-            onDrop={(event) => {
-              event.preventDefault()
-              setIsDraggingUpload(false)
-              void handleFiles(event.dataTransfer.files)
+            className="studio-composer"
+            aria-label="创作面板"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              void handleFiles(e.dataTransfer.files)
             }}
           >
-            <div className="retouch-section-heading retouch-control-heading">
-              <span>创作设置</span>
-              <div className="retouch-control-heading-actions">
-                <strong>{isTextToImageMode ? '文生图' : maskDraft ? '遮罩编辑' : params.n > 1 ? `${params.n} 张输出` : '单张输出'}</strong>
-                <button type="button" className="apple-icon-button retouch-panel-settings" onClick={() => setShowSettings(true, 'api')} aria-label="打开设置" title="设置">
-                  <SettingsIcon className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </div>
+            <div className="studio-composer-title">
+              <span>
+                <WandSparkles size={17} />
+                开始创作
+              </span>
+              <div className="studio-composer-title-actions"><span className="studio-composer-count">{selectedConfigCount ? `${selectedConfigCount} 个预设` : '自由创作'}</span><StudioButton tone="ghost" aria-label="保存为模板" title="将当前提示词和参数保存为模板" onClick={(event) => openTemplateEditor(event.currentTarget)}><SquarePen size={14} /></StudioButton></div>
             </div>
-            <div className="retouch-side-submit">
-              <div className="retouch-segment-group retouch-mode-switch" role="group" aria-label="生成模式">
-                <span>模式</span>
-                <button
-                  type="button"
-                  className={isTextToImageMode ? 'is-active' : ''}
-                  aria-pressed={isTextToImageMode}
-                  onClick={() => switchGenerationMode('text')}
-                >
-                  <strong>文生图</strong>
-                  <small>纯文字</small>
-                </button>
-                <button
-                  type="button"
-                  className={isImageEditMode ? 'is-active' : ''}
-                  aria-pressed={isImageEditMode}
-                  onClick={() => switchGenerationMode('edit')}
-                >
-                  <strong>图生图</strong>
-                  <small>参考图修图</small>
-                </button>
-              </div>
-              <button type="button" className="retouch-upload-button" onClick={() => fileInputRef.current?.click()}>
-                <PhotoIcon className="h-4 w-4" />
-                <span>{inputImages.length ? `${inputImages.length} 张参考图` : isTextToImageMode ? '上传参考图并修图' : '上传参考图'}</span>
-              </button>
-              {isTextToImageMode && inputImages.length > 0 && (
-                <div className="retouch-mode-note">当前为文生图，提交时不会引用这些参考图。</div>
+            <StudioTabs className="studio-mode" value={generationMode} onValueChange={(value) => switchGenerationMode(value as RetouchGenerationMode)} tabs={[{ value: 'text', label: '文生图' }, { value: 'edit', label: '图生图' }]} />
+            <div className="studio-composer-scroll">
+              {!!selectedTemplates.length && (
+                <div className="studio-selected-templates">
+                  <span>已选模板</span>
+                  <div>
+                    {selectedTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => toggleTemplate(template)}
+                        aria-label={`移除${template.title}`}
+                      >
+                        {template.title}
+                        <X size={12} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-              {inputImages.length > 0 && (
-                <div className="retouch-thumb-row">
-                  {inputImages.slice(0, 5).map((image, index) => (
-                    <div
-                      key={image.id}
-                      className={`retouch-input-thumb ${image.id === maskDraft?.targetImageId ? 'is-mask-target' : ''}`}
-                      title={`参考图 ${index + 1}`}
-                    >
+              <label className="studio-prompt">
+                <span>
+                  {promptFieldLabel}
+                  <small>描述越具体，画面越贴近</small>
+                </span>
+                <InputArea
+                  data-guide="prompt"
+                  aria-label={promptFieldLabel}
+                  ref={promptRef}
+                  value={prompt}
+                  onChange={(e) => {
+                    promptManuallyEditedRef.current = true
+                    setPrompt(e.target.value)
+                  }}
+                  placeholder={
+                    isTextToImageMode
+                      ? '想做什么样的画面？\n说说主体、风格、色彩和文字。'
+                      : '想修改照片的哪里？\n说说效果，以及需要保留的细节。'
+                  }
+                  spellCheck={false}
+                />
+              </label>
+              <div className="studio-upload-heading">
+                <span>参考素材</span>
+                <small>
+                  {inputImages.length ? `${inputImages.length} 张` : isTextToImageMode ? '可选' : '需要参考图'}
+                </small>
+              </div>
+              {!!inputImages.length && (
+                <div className="studio-input-images">
+                  {inputImages.map((image, index) => (
+                    <div key={image.id}>
                       <img src={image.dataUrl} alt={`参考图 ${index + 1}`} />
-                      <button type="button" aria-label={`移除参考图 ${index + 1}`} onClick={() => handleRemoveInputImage(index)}>
-                        <CloseIcon className="h-3 w-3" />
+                      <button onClick={() => handleRemoveInputImage(index)} aria-label={`移除参考图 ${index + 1}`}>
+                        <X size={12} />
                       </button>
                     </div>
                   ))}
-                  {inputImages.length > 5 && <span className="retouch-thumb-more">+{inputImages.length - 5}</span>}
-                  <button type="button" className="retouch-clear-images" onClick={handleClearInputImages}>清空</button>
+                  <button
+                    className="studio-add-reference"
+                    aria-label="添加更多参考图"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Plus size={20} />
+                  </button>
                 </div>
+              )}
+              {!inputImages.length && (
+                <button className="studio-upload" onClick={() => fileInputRef.current?.click()}>
+                  <ImagePlus size={23} strokeWidth={1.5} />
+                  <strong>添加参考图</strong>
+                  <small>点击上传，或将图片拖入这里</small>
+                </button>
+              )}
+              {isTextToImageMode && inputImages.length > 0 && (
+                <p className="studio-muted-note">文生图不会携带参考图。需要引用时切换到图生图。</p>
               )}
               {maskDraft && (
-                <div className="retouch-mask-status">
-                  <span>{maskTargetInput ? '已生成局部遮罩' : '遮罩主图缺失'}</span>
-                  <strong>{maskTargetInput ? `${referenceImages.length} 张额外参考图` : '请重新涂抹'}</strong>
-                  <button type="button" onClick={clearMaskDraft}>移除遮罩</button>
-                </div>
-              )}
-              <button type="button" className="retouch-mask-button" onClick={handleMaskEdit}>
-                <EditIcon className="h-4 w-4" />
-                <span>{isTextToImageMode ? '切换修图后可使用局部编辑' : maskDraft ? '编辑已选区域' : '选择局部编辑区域'}</span>
-              </button>
-              <label className="retouch-prompt-field">
-                <span>{promptFieldLabel}</span>
-                <textarea
-                  value={prompt}
-                  onChange={(event) => {
-                    promptManuallyEditedRef.current = true
-                    setPrompt(event.target.value)
-                  }}
-                  placeholder={promptPlaceholder}
-                  spellCheck={false}
-                  rows={5}
-                />
-              </label>
-              <div className="retouch-submit-controls">
-                <div className="retouch-segment-group" role="group" aria-label="输出数量">
-                  <span>数量</span>
-                  {[1, 4].map((count) => (
-                    <button
-                      key={count}
-                      type="button"
-                      className={params.n === count ? 'is-active' : ''}
-                      aria-pressed={params.n === count}
-                      onClick={() => setParams({ n: count })}
-                    >
-                      {count === 1 ? '1 张' : '4 版'}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="retouch-segment-group" role="group" aria-label="输出尺寸">
-                  <span>尺寸</span>
-                  {outputSizeOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      title={option.value === 'auto' ? '由模型自动判断输出尺寸' : `${option.label} · ${option.value}`}
-                      className={activeOutputSizeId === option.id ? 'is-active' : ''}
-                      aria-pressed={activeOutputSizeId === option.id}
-                      onClick={() => {
-                        setSelectedOutputRatio(option.id === 'auto' ? null : { size: option.value, ratio: outputSizeRatio })
-                        setParams({ size: option.value })
-                        showToast(
-                          option.id === 'auto'
-                            ? '输出尺寸已设为自动'
-                            : `输出尺寸已设为 ${option.label}（${option.value}）`,
-                          'success',
-                        )
-                      }}
-                    >
-                      <strong>{option.label}</strong>
-                      <small>{option.hint}</small>
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  className="retouch-size-picker"
-                  aria-haspopup="dialog"
-                  aria-expanded={showSizePicker}
-                  title="选择图像比例或自定义宽高"
-                  onClick={() => setShowSizePicker(true)}
-                >
-                  <SettingsIcon className="h-4 w-4" aria-hidden="true" />
-                  <span>设置尺寸</span>
-                  <strong>{params.size === 'auto' ? '自动' : params.size.replace('x', ' × ')}</strong>
-                  <StudioSymbol name="arrow" className="h-4 w-4" />
-                </button>
-
-                <div className="retouch-segment-group" role="group" aria-label="修图质量">
-                  <span>质量</span>
-                  {qualityOptions.filter((option) => activeProfile.provider !== 'fal' || option.value !== 'auto').map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      title={qualityLocked ? 'Codex 兼容模式使用自动质量' : option.hint}
-                      disabled={qualityLocked}
-                      className={effectiveQuality === option.value ? 'is-active' : ''}
-                      aria-pressed={effectiveQuality === option.value}
-                      onClick={() => setParams({ quality: option.value })}
-                    >
-                      <strong>{option.label}</strong>
-                      <small>{option.hint}</small>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="retouch-segment-group" role="group" aria-label="交付格式">
-                  <span>格式</span>
-                  {formatOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={params.output_format === option.value ? 'is-active' : ''}
-                      aria-pressed={params.output_format === option.value}
-                      onClick={() => setParams({
-                        output_format: option.value,
-                        ...(option.value === 'jpeg' && params.background === 'transparent' ? { background: 'opaque' as const } : {}),
-                      })}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-
-                <button type="button" className="retouch-submit-button" onClick={handleSubmit}>
-                  <StudioSymbol name="sparkles" className="h-4 w-4" />
-                  <span>{submitLabel}</span>
-                  <StudioSymbol name="arrow" className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                const files = event.target.files
-                if (files) void handleFiles(files)
-                event.target.value = ''
-              }}
-            />
-          </aside>
-
-          <aside className="retouch-output-panel">
-            <div className="retouch-section-heading">
-              <span>{historyTitle}</span>
-              <strong>{retouchTasks.length ? `${retouchTasks.length} 条` : '暂无'}</strong>
-            </div>
-            <div className="retouch-history-list">
-              {historyTasks.length ? (
-                historyTasks.map((task) => (
-                  <button
-                    key={task.id}
-                    type="button"
-                    className={`retouch-history-card ${selectedHistoryTaskId === task.id ? 'is-active' : ''}`}
-                    aria-pressed={selectedHistoryTaskId === task.id}
-                    onClick={() => {
-                      setCompareEnabled(false)
-                      setSelectedHistoryTaskId(task.id)
-                      showToast(`已切换到 ${new Date(task.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 的${task.inputImageIds.length ? '修图' : '生成'}记录`, 'success')
-                    }}
-                  >
-                    <HistoryThumb task={task} />
-                    <span>
-                      <strong>{formatStatus(task.status)} · {task.outputImages.length || task.params.n} 张</strong>
-                      <small>{truncateMiddle(task.prompt, 30)}</small>
-                    </span>
+                <div className="studio-mask-chip">
+                  <Scissors size={14} />
+                  <span>局部遮罩已就绪</span>
+                  <button onClick={clearMaskDraft} aria-label="移除遮罩">
+                    <X size={13} />
                   </button>
-                ))
-              ) : (
-                <div className="retouch-empty-history">每一次创作，都会保存在这里。</div>
-              )}
-            </div>
-
-            <div className="retouch-section-heading">
-              <span>当前指令</span>
-              <strong>{params.n > 1 ? `${params.n} 张输出` : '单张输出'}</strong>
-            </div>
-            <div className="retouch-current-brief">
-              <strong>{currentWorkSummary}</strong>
-              <p>{prompt || currentPromptFallback}</p>
-            </div>
-
-            <div className="retouch-section-heading">
-              <span>任务状态</span>
-              <strong>{formatStatus(visibleTask?.status)}</strong>
-            </div>
-            <div className={`retouch-task-summary ${visibleTask?.status ? `is-${visibleTask.status}` : ''}`}>
-              <span>{visibleTask ? new Date(visibleTask.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '暂无任务'}</span>
-              <strong>{visibleTask?.apiModel || activeProfile.model || '未设置模型'}</strong>
-              {visibleTask?.elapsed != null && <small>{formatElapsed(visibleTask.elapsed)}</small>}
-              {visibleTask?.error && <p>{visibleTask.error}</p>}
-            </div>
-
-            <div className="retouch-result-strip">
-              {visibleTask?.outputImages.length ? (
-                visibleTask.outputImages.slice(0, 4).map((imageId, index) => (
-                  <OutputImage
-                    key={imageId}
-                    imageId={imageId}
-                    imageList={visibleTask.outputImages}
-                    label={`输出图 ${index + 1}`}
-                  />
-                ))
-              ) : (
-                <div className="retouch-empty-result">
-                  <SettingsIcon className="h-4 w-4" />
-                  <span>你的作品将显示在这里</span>
                 </div>
               )}
+              {!isCreativeCategory && (
+                <details className="studio-adjustments">
+                  <summary>
+                    <SlidersHorizontal size={14} />
+                    修图调整
+                    <ChevronDown size={14} />
+                  </summary>
+                  <label>
+                    处理强度
+                    <StudioSelect
+                      aria-label="处理强度"
+                      value={selectedStrengthId}
+                      onValueChange={(value) => applyStrength(value as RetouchStrengthId)}
+                    >
+                      {strengthOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </StudioSelect>
+                  </label>
+                  <label>
+                    主体类型
+                    <StudioSelect
+                      aria-label="主体类型"
+                      value={selectedTargetId}
+                      onValueChange={(value) => applyTarget(value as RetouchTargetId)}
+                    >
+                      {targetOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </StudioSelect>
+                  </label>
+                </details>
+              )}
+            </div>
+            <div className="studio-composer-footer">
+              <button
+                data-guide="output"
+                ref={outputButtonRef}
+                className="studio-output-settings"
+                onClick={() => changeOutputDrawer(true)}
+                aria-label="打开输出设置"
+                aria-haspopup="dialog"
+              >
+                <SlidersHorizontal size={16} />
+                <span>
+                  <strong>输出设置</strong>
+                  <small>{outputSummary}</small>
+                </span>
+                <ChevronRight size={15} />
+              </button>
+              <StudioButton
+                tone="primary"
+                data-guide="generate"
+                className="studio-generate"
+                onClick={handleSubmit}
+                disabled={!apiIssue && !prompt.trim()}
+              >
+                <Sparkles size={17} />
+                {submitLabel}
+                <ArrowRight size={17} />
+              </StudioButton>
+              <button className="studio-model-label" onClick={() => setShowSettings(true, 'api')}>
+                <span className={`studio-status-dot ${apiIssue ? 'is-unconnected' : ''}`} />
+                {activeProfile.model || '选择图像模型'}
+                <ChevronDown size={12} />
+              </button>
             </div>
           </aside>
         </div>
+        {workspaceView === 'canvas' && <div className="studio-mobile-workspace-switch"><StudioTabs value={mobilePanel} onValueChange={(value) => setMobilePanel(value as 'preview' | 'compose')} tabs={[{ value: 'preview', label: '画布预览' }, { value: 'compose', label: '编辑与生成' }]} /></div>}
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        aria-label="上传参考图文件"
+        onChange={(e) => {
+          if (e.target.files) void handleFiles(e.target.files)
+          e.target.value = ''
+        }}
+      />
+      <StudioSheet
+        open={showMobileNav}
+        onOpenChange={setShowMobileNav}
+        title="创作导航"
+        description="选择一个创作方向"
+        side="left"
+        returnFocusRef={navButtonRef}
+      >
+        <div className="studio-mobile-nav-content">{nav}</div>
+      </StudioSheet>
+      <StudioSheet
+        open={showOutputDrawer}
+        onOpenChange={changeOutputDrawer}
+        title="输出设置"
+        description="调整这次创作的画幅与质感"
+        returnFocusRef={outputButtonRef}
+        footer={
+          <>
+            <StudioButton tone="ghost" onClick={() => setParams({ ...DEFAULT_PARAMS })}>
+              <RotateCcw size={15} />
+              恢复默认
+            </StudioButton>
+            <StudioButton tone="primary" onClick={() => changeOutputDrawer(false)}>
+              完成
+              <Check size={15} />
+            </StudioButton>
+          </>
+        }
+      >
+        <div className="studio-settings-section">
+          <h3>画幅与数量</h3>
+          <label className="studio-field">
+            输出数量
+            <StudioSelect aria-label="输出数量" value={params.n} onValueChange={(value) => setParams({ n: Number(value) })}>
+              {Array.from({ length: activeProfile.provider === 'fal' ? 4 : 10 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1} 张
+                </option>
+              ))}
+            </StudioSelect>
+          </label>
+          <div className="studio-field">
+            <span>分辨率</span>
+            <div className="studio-size-presets" role="group" aria-label="输出分辨率">
+              {outputSizeOptions.map((option) => (
+                <button
+                  key={option.id}
+                  aria-pressed={activeOutputSizeId === option.id}
+                  onClick={() => {
+                    setSelectedOutputRatio(option.id === 'auto' ? null : { size: option.value, ratio: outputSizeRatio })
+                    setParams({ size: option.value })
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            className="studio-size-custom"
+            onClick={() => {
+              setShowOutputDrawer(false)
+              setShowSizePicker(true)
+            }}
+          >
+            <Frame size={16} />
+            <span>比例与自定义尺寸</span>
+            <strong>{params.size === 'auto' ? '自动' : params.size.replace('x', ' × ')}</strong>
+            <ChevronRight size={15} />
+          </button>
+        </div>
+        <div className="studio-settings-section">
+          <h3>画质与格式</h3>
+          <div className="studio-field-grid">
+            <label className="studio-field">
+              画质
+              <StudioSelect aria-label="画质"
+                value={effectiveQuality}
+                disabled={qualityLocked}
+                onValueChange={(value) => setParams({ quality: value as TaskParams['quality'] })}
+              >
+                {qualityOptions
+                  .filter(
+                    (o) =>
+                      !(activeProfile.provider === 'fal' && o.value === 'auto') &&
+                      (extendedQuality || !['xhigh', 'max'].includes(o.value)),
+                  )
+                  .map((o) => (
+                    <option value={o.value} key={o.value}>
+                      {o.label} · {o.value}
+                    </option>
+                  ))}
+              </StudioSelect>
+            </label>
+            <label className="studio-field">
+              复杂度
+              <StudioSelect aria-label="复杂度"
+                value={supports26 ? params.complexity : 'auto'}
+                disabled={!supports26}
+                onValueChange={(value) => setParams({ complexity: value as TaskParams['complexity'] })}
+              >
+                {complexityOptions.map((o) => (
+                  <option value={o.value} key={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </StudioSelect>
+            </label>
+          </div>
+          <label className="studio-field">
+            文件格式
+            <StudioSelect aria-label="文件格式"
+              value={visibleFormat}
+              onValueChange={(value) =>
+                setParams({
+                  output_format: value as TaskParams['output_format'],
+                  ...(value === 'jpeg' && params.background === 'transparent'
+                    ? { background: 'opaque' as const }
+                    : {}),
+                })
+              }
+            >
+              {formatOptions.map((o) => (
+                <option
+                  key={o.value}
+                  value={o.value}
+                  disabled={
+                    (['gif', 'svg'].includes(o.value) && !supports26) ||
+                    (o.value === 'svg' && (isImageEditMode || activeProfile.provider === 'fal'))
+                  }
+                >
+                  {o.label}
+                  {o.value === 'svg' ? ' · 矢量' : o.value === 'gif' ? ' · 动图' : ''}
+                </option>
+              ))}
+            </StudioSelect>
+          </label>
+          {visibleFormat === 'gif' && supports26 && (
+            <div className="studio-field-grid">
+              <label className="studio-field">
+                GIF 帧数
+                <input
+                  type="number"
+                  min={2}
+                  max={16}
+                  defaultValue={params.frame_count}
+                  key={`frames-${params.frame_count}`}
+                  onBlur={(e) =>
+                    setParams({ frame_count: Math.min(16, Math.max(2, Math.round(Number(e.target.value) || 9))) })
+                  }
+                />
+              </label>
+              <label className="studio-field">
+                每帧时长（ms）
+                <input
+                  type="number"
+                  min={20}
+                  max={2000}
+                  defaultValue={params.frame_duration_ms}
+                  key={`duration-${params.frame_duration_ms}`}
+                  onBlur={(e) =>
+                    setParams({
+                      frame_duration_ms: Math.min(2000, Math.max(20, Math.round(Number(e.target.value) || 200))),
+                    })
+                  }
+                />
+              </label>
+            </div>
+          )}
+          {qualityLocked && <p className="studio-muted-note">当前兼容模式使用自动画质。</p>}
+          {!supports26 && <p className="studio-muted-note">复杂度、GIF 和 SVG 需要 GPT Image 2.6 及以上模型。</p>}
+          <label className="studio-field">
+            背景
+            <StudioSelect aria-label="背景"
+              value={params.background ?? 'default'}
+              disabled={activeProfile.provider === 'fal'}
+              onValueChange={(value) =>
+                setParams({
+                  background: value === 'default' ? undefined : (value as TaskParams['background']),
+                })
+              }
+            >
+              <option value="default">服务商默认</option>
+              <option value="auto">自动</option>
+              <option value="opaque">不透明</option>
+              <option value="transparent" disabled={visibleFormat === 'jpeg'}>
+                透明
+              </option>
+            </StudioSelect>
+          </label>
+        </div>
+        <div className="studio-settings-section">
+          <div className="studio-switch-field">
+            <label htmlFor="studio-stream">
+              流式传输<small>默认关闭，可按接口能力手动开启。</small>
+            </label>
+            <Switch
+              size="sm"
+              id="studio-stream"
+              checked={activeProfile.streamImages === true}
+              disabled={activeProfile.provider === 'fal'}
+              onCheckedChange={setStreamImages}
+              aria-label="流式传输"
+            />
+          </div>
+          <StudioButton
+            tone="ghost"
+            className="studio-api-settings-link"
+            onClick={() => {
+              setShowOutputDrawer(false)
+              setShowSettings(true, 'api')
+            }}
+          >
+            <Settings2 size={15} />
+            接口与更多参数
+            <ArrowUpRight size={15} />
+          </StudioButton>
+        </div>
+      </StudioSheet>
+      <StudioSheet
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        title="创作历史"
+        description={`${historyTasks.length} 次创作，保存在这台设备中`}
+        returnFocusRef={historyButtonRef}
+      >
+        <div className="studio-filter-tabs" role="group" aria-label="筛选历史">
+          {[
+            { value: 'all', label: '全部' },
+            { value: 'done', label: '已完成' },
+            { value: 'running', label: '生成中' },
+            { value: 'error', label: '失败' },
+          ].map((f) => (
+            <button key={f.value} aria-pressed={historyFilter === f.value} onClick={() => setHistoryFilter(f.value)}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="studio-history-list">
+          {visibleHistory.map((task) => (
+            <article className="studio-history-item" key={task.id}>
+              <button
+                className="studio-history-open"
+                onClick={() => {
+                  setSelectedHistoryTaskId(task.id)
+                  setCompareEnabled(false)
+                  setWorkspaceView('canvas')
+                  setShowHistory(false)
+                }}
+              >
+                <HistoryThumb task={task} />
+                <span>
+                  <strong>{truncateMiddle(task.prompt, 40)}</strong>
+                  <small>
+                    {new Date(task.createdAt).toLocaleString('zh-CN', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </small>
+                  <span className={`studio-task-badge is-${task.status}`}>
+                    {formatStatus(task.status)} · {task.outputImages.length || task.params.n} 张
+                  </span>
+                </span>
+              </button>
+              <StudioButton
+                tone="ghost"
+                aria-label="查看任务详情"
+                onClick={() => {
+                  setShowHistory(false)
+                  useStore.getState().setDetailTaskId(task.id)
+                }}
+              >
+                <ArrowUpRight size={16} />
+              </StudioButton>
+            </article>
+          ))}
+        </div>
+        {!visibleHistory.length && (
+          <div className="studio-search-empty">
+            <History size={30} />
+            <strong>{historyFilter === 'all' ? '你的作品，从这里积累' : '暂无这类记录'}</strong>
+            <span>{historyFilter === 'all' ? '完成第一次生成后，随时回来继续创作。' : '切换筛选，看看其他创作。'}</span>
+          </div>
+        )}
+      </StudioSheet>
+      {templateEditor && <TemplateEditor template={templateEditor.template} prompt={prompt} params={params} generationMode={generationMode} returnFocusRef={templateTriggerRef}
+        onClose={() => setTemplateEditor(null)} onSave={(draft, id) => {
+          useUserTemplates.getState().save(draft, id)
+          templateTriggerRef.current = newTemplateButtonRef.current
+          setTemplateEditor(null)
+          selectCategory('custom')
+          showToast(id ? '模板已更新' : '模板已保存，可随时复用', 'success')
+        }} />}
+      <StudioGuide step={guide.step} paused={showOutputDrawer || showSizePicker || showHistory || showMobileNav || settingsOpen || !!templateEditor} onAction={guideAction} onDismiss={() => guide.finish()} />
       {showSizePicker && (
         <SizePickerModal
           currentSize={params.size}
           onSelect={(size, ratio) => {
             setSelectedOutputRatio(ratio ? { size, ratio } : null)
             setParams({ size })
-            showToast(size === 'auto' ? '输出尺寸已设为自动' : `输出尺寸已设为 ${size}`, 'success')
           }}
-          onClose={() => setShowSizePicker(false)}
+          onClose={() => {
+            setShowSizePicker(false)
+            setShowOutputDrawer(true)
+          }}
         />
       )}
     </section>

@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { calculateImageSize, normalizeImageSize, parseRatio, type SizeTier } from '../lib/size'
 import { usePreventBackgroundScroll } from '../hooks/usePreventBackgroundScroll'
 import ViewportTooltip from './ViewportTooltip'
+import { StudioButton, StudioTabs } from './studio/StudioPrimitives'
 
 const TIERS: SizeTier[] = ['1K', '2K', '4K']
 const SIZE_LIMIT_TEXT = '由于模型限制，最终输出会自动规整到合法尺寸：\n宽高均为 16 的倍数，最大边长 3840px，宽高比不超过 3:1，总像素限制为 655360-8294400。'
@@ -168,10 +169,7 @@ export default function SizePickerModal({ currentSize, onSelect, onClose, allowA
   }
 
   const buttonClass = (active: boolean) => {
-    return `rounded-xl border px-3 py-2 text-sm transition ${active
-      ? 'border-blue-400 bg-blue-50 text-blue-600 dark:border-blue-500/50 dark:bg-blue-500/10 dark:text-blue-300'
-      : 'border-gray-200/70 bg-white/60 text-gray-600 hover:bg-gray-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]'
-    }`
+    return `studio-size-choice${active ? ' is-active' : ''}`
   }
 
   return (
@@ -181,7 +179,7 @@ export default function SizePickerModal({ currentSize, onSelect, onClose, allowA
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
     >
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-overlay-in" />
+      <div className="apple-dialog-backdrop absolute inset-0 animate-overlay-in" />
       <div
         ref={modalRef}
         role="dialog"
@@ -205,7 +203,7 @@ export default function SizePickerModal({ currentSize, onSelect, onClose, allowA
             first?.focus()
           }
         }}
-        className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-white/50 bg-white/95 p-5 shadow-2xl ring-1 ring-black/5 animate-modal-in dark:border-white/[0.08] dark:bg-gray-900/95 dark:ring-white/10"
+        className="apple-dialog studio-size-dialog relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto p-5 animate-modal-in"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
@@ -224,30 +222,13 @@ export default function SizePickerModal({ currentSize, onSelect, onClose, allowA
         </div>
 
         <div className="space-y-6">
-          <div className="flex rounded-xl bg-gray-100/80 p-1 dark:bg-white/[0.04]">
-            {allowAuto && (
-              <button
-                onClick={() => setMode('auto')}
-                className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition ${mode === 'auto' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-              >
-                自动
-              </button>
-            )}
-            <button
-              onClick={() => setMode('ratio')}
-              className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition ${mode === 'ratio' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-            >
-              按比例
-            </button>
-            <button
-              onClick={() => setMode('resolution')}
-              className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition ${mode === 'resolution' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-            >
-              自定义宽高
-            </button>
-          </div>
+          <StudioTabs value={mode} onValueChange={(value) => setMode(value as Mode)} tabs={[
+            ...(allowAuto ? [{ value: 'auto', label: '自动' }] : []),
+            { value: 'ratio', label: '按比例' },
+            { value: 'resolution', label: '自定义宽高' },
+          ]} />
 
-          <div className="h-[380px] max-h-[55vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10 pr-1 -mr-1 pb-2">
+          <div className="studio-size-options-panel overflow-y-auto pr-1 -mr-1 pb-2">
             {mode === 'auto' && (
               <div className="flex h-full animate-fade-in items-center justify-center pt-8 pb-4 text-center">
                 <div>
@@ -402,19 +383,20 @@ export default function SizePickerModal({ currentSize, onSelect, onClose, allowA
         </div>
 
         <div className="mt-5 flex gap-2">
-          <button
+          <StudioButton
             onClick={onClose}
-            className="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-200 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]"
+            className="flex-1"
           >
             取消
-          </button>
-          <button
+          </StudioButton>
+          <StudioButton
+            tone="primary"
             onClick={applySize}
             disabled={!previewSize}
-            className="flex-1 rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1"
           >
             确定
-          </button>
+          </StudioButton>
         </div>
       </div>
     </div>

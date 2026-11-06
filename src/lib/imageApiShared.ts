@@ -1,9 +1,24 @@
-import type { AppSettings, TaskParams } from '../types'
+import type { ApiProfile, AppSettings, TaskParams } from '../types'
+import { DEFAULT_SVG_MODEL } from './imageModels'
 
 export const MIME_MAP: Record<string, string> = {
   png: 'image/png',
   jpeg: 'image/jpeg',
   webp: 'image/webp',
+  svg: 'image/svg+xml',
+  gif: 'image/gif',
+}
+
+/** GPT Image 2.6 的 complexity、SVG 和 GIF 字段；Images API 生成请求和 Responses 图像工具格式相同 */
+export function applyGptImage26Params(target: Record<string, unknown>, params: TaskParams, profile: ApiProfile) {
+  if (params.complexity !== 'auto') target.complexity = params.complexity
+  if (params.output_format === 'svg') {
+    target.svg = { model: profile.svgModel?.trim() || DEFAULT_SVG_MODEL }
+  }
+  if (params.output_format === 'gif') {
+    target.frame_count = params.frame_count
+    target.frame_duration_ms = params.frame_duration_ms
+  }
 }
 
 export const MAX_MASK_EDIT_FILE_BYTES = 50 * 1024 * 1024
@@ -161,13 +176,43 @@ export async function fetchImageUrlAsDataUrl(url: string, fallbackMime: string, 
   return blobToDataUrl(blob, fallbackMime)
 }
 
+const MODERATION_STAGE_LABELS: Record<string, string> = {
+  input: '提示词或参考图',
+  output: '生成结果',
+}
+
+const IMAGE_TOOL_DROPPED_ERROR = /Tool choice 'required' must be specified with 'tools' parameter\./i
+export const IMAGE_TOOL_DROPPED_HINT = '提示：当前使用的 API 可能未正确转发图像生成工具，请尝试更换支持该工具的接口或模型。'
+
+export function appendModerationDetails(message: string, details: unknown): string {
+  if (!details || typeof details !== 'object') return message
+  const record = details as Record<string, unknown>
+  const stage = typeof record.moderation_stage === 'string' ? MODERATION_STAGE_LABELS[record.moderation_stage] : undefined
+  const categories = Array.isArray(record.categories)
+    ? record.categories.filter((item): item is string => typeof item === 'string' && Boolean(item))
+    : []
+  const parts = [
+    stage ? `拦截来源：${stage}` : '',
+    categories.length ? `类别：${categories.join('、')}` : '',
+  ].filter(Boolean)
+  return parts.length ? `${message}\n${parts.join('；')}` : message
+}
+
+export function maybeAppendImageToolDroppedHint(message: string): string {
+  if (!IMAGE_TOOL_DROPPED_ERROR.test(message)) return message
+  return `${message}\n${IMAGE_TOOL_DROPPED_HINT}`
+}
+
 function getMessageFromErrorJson(errJson: unknown): string | null {
   if (!errJson || typeof errJson !== 'object') return null
   const record = errJson as Record<string, unknown>
   const error = record.error
   if (error && typeof error === 'object' && !Array.isArray(error)) {
-    const message = (error as Record<string, unknown>).message
-    if (typeof message === 'string' && message.trim()) return message
+    const errorRecord = error as Record<string, unknown>
+    const message = errorRecord.message
+    if (typeof message === 'string' && message.trim()) {
+      return appendModerationDetails(message, errorRecord.moderation_details)
+    }
   }
   if (typeof record.detail === 'string' && record.detail.trim()) return record.detail
   if (Array.isArray(record.detail) && record.detail.length) {
@@ -234,8 +279,14 @@ export function pickActualParams(source: unknown): Partial<TaskParams> {
   if (record.quality === 'auto' || record.quality === 'low' || record.quality === 'medium' || record.quality === 'high') {
     actualParams.quality = record.quality
   }
-  if (record.output_format === 'png' || record.output_format === 'jpeg' || record.output_format === 'webp') {
+  if (record.quality === 'xhigh' || record.quality === 'max') {
+    actualParams.quality = record.quality
+  }
+  if (record.output_format === 'png' || record.output_format === 'jpeg' || record.output_format === 'webp' || record.output_format === 'svg' || record.output_format === 'gif') {
     actualParams.output_format = record.output_format
+  }
+  if (record.complexity === 'auto' || record.complexity === 'low' || record.complexity === 'medium' || record.complexity === 'high') {
+    actualParams.complexity = record.complexity
   }
   if (typeof record.output_compression === 'number') actualParams.output_compression = record.output_compression
   if (record.moderation === 'auto' || record.moderation === 'low') actualParams.moderation = record.moderation

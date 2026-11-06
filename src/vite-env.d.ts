@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
+declare module '@cloudflare/kumo/styles/standalone'
 
 declare const __APP_VERSION__: string
+declare const __APP_BUILD_ID__: string
 declare const __DEV_PROXY_CONFIG__: unknown
 
 interface ImportMetaEnv {

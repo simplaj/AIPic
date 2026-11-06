@@ -37,8 +37,51 @@ jobs:
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
           jq -e --arg tag "$TAG" '[.[][] | select(.tag_name == $tag and .draft == false)] | length == 0' "$RUNNER_TEMP/releases.json"
 
-  build:
+  validate:
     needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+      RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+      RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies and run unit tests
+        run: |
+          npm ci
+          npm test -- --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/unit-results.json"
+      - name: Build the production frontend
+        run: npm run build:backend
+      - name: Install browser for UI regression checks
+        run: npx playwright install --with-deps chromium
+      - name: Check the production UI with intercepted model requests
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 5194 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          AIPIC_UI_URL=http://127.0.0.1:5194 npm run test:ui
+      - name: Record validation for this release commit
+        env:
+          RELEASE_DIR: ${{ runner.temp }}/release-validation
+        run: node scripts/package-release.mjs validate "$RUNNER_TEMP/unit-results.json" .git/codex-ui-qa/smoke-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-validation
+          path: ${{ runner.temp }}/release-validation/validation.json
+          if-no-files-found: error
+          retention-days: 7
+
+  build:
+    needs: [prepare, validate]
     strategy:
       fail-fast: false
       matrix:
@@ -109,7 +152,7 @@ jobs:
           retention-days: 7
 
   publish:
-    needs: [prepare, build]
+    needs: [prepare, validate, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -130,7 +173,7 @@ jobs:
         run: echo "RELEASE_DIR=$RUNNER_TEMP/release-assets" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@v4
         with:
-          pattern: release-image-*
+          pattern: release-*
           merge-multiple: true
           path: ${{ runner.temp }}/release-assets
       - uses: docker/setup-buildx-action@v4

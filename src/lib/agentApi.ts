@@ -1,6 +1,7 @@
 import { DEFAULT_AGENT_MAX_TOOL_ROUNDS, DEFAULT_STREAM_PARTIAL_IMAGES, type ApiProfile, type AppSettings, type ResponsesApiResponse, type ResponsesOutputItem, type TaskParams } from '../types'
 import { buildApiUrl, createApiProxyHeaders, readClientDevProxyConfig, shouldUseApiProxy } from './devProxy'
-import { createApiResponseError, getApiErrorMessage, MIME_MAP, normalizeBase64Image, pickActualParams } from './imageApiShared'
+import { applyGptImage26Params, createApiResponseError, getApiErrorMessage, maybeAppendImageToolDroppedHint, MIME_MAP, normalizeBase64Image, pickActualParams } from './imageApiShared'
+import { getImageGenerationModel } from './imageModels'
 import { runImageRequest } from './imageRequest'
 import { getImageRequestTimeoutSeconds } from './imageRequestTimeout'
 import { fetchImageResponse } from './imageProxyTransport'
@@ -787,12 +788,15 @@ export async function callBatchImageSingle(opts: {
       const tool: Record<string, unknown> = {
         type: 'image_generation',
         action: referenceImageDataUrls.length > 0 ? 'auto' : 'generate',
-        size: params.size,
         output_format: params.output_format,
         moderation: params.moderation,
         ...(params.background !== undefined ? { background: params.background } : {}),
         quality: params.quality,
       }
+      const imageModel = getImageGenerationModel(profile)
+      if (imageModel) tool.model = imageModel
+      if (!profile.codexCli) tool.size = params.size
+      applyGptImage26Params(tool, params, profile)
       if (params.output_format !== 'png' && params.output_compression != null) {
         tool.output_compression = params.output_compression
       }
@@ -806,6 +810,7 @@ export async function callBatchImageSingle(opts: {
         tools: [tool],
         tool_choice: 'required',
       }
+      if (profile.reasoningEffort) body.reasoning = { effort: profile.reasoningEffort }
       if (profile.streamImages) {
         body.stream = true
       }
@@ -820,7 +825,7 @@ export async function callBatchImageSingle(opts: {
 
       if (!response.ok) {
         const errorMsg = await getApiErrorMessage(response)
-        return { batchItemId, image: null, error: errorMsg }
+        return { batchItemId, image: null, error: maybeAppendImageToolDroppedHint(errorMsg) }
       }
 
       // Handle streaming

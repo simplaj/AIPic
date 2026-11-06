@@ -123,7 +123,7 @@ describe('callImageApi', () => {
     ])
   })
 
-  it('requests Images API streaming by default', async () => {
+  it('keeps Images API streaming off by default', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
       data: [{ b64_json: 'aW1hZ2U=' }],
     }), {
@@ -140,8 +140,8 @@ describe('callImageApi', () => {
 
     const [, init] = fetchMock.mock.calls[0]
     const body = JSON.parse(String((init as RequestInit).body))
-    expect(body.stream).toBe(true)
-    expect(body.partial_images).toBe(DEFAULT_SETTINGS.streamPartialImages)
+    expect(body.stream).toBeUndefined()
+    expect(body.partial_images).toBeUndefined()
   })
 
   it('explains empty successful Images API responses instead of exposing Response.json errors', async () => {

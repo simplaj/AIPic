@@ -17,6 +17,7 @@ import Toast from './components/Toast'
 import MaskEditorModal from './components/MaskEditorModal'
 import ImageContextMenu from './components/ImageContextMenu'
 import { useGlobalClickSuppression } from './lib/clickSuppression'
+import AppVersionGate from './components/AppVersionGate'
 
 let customProviderConfigUrlImportStarted = false
 
@@ -70,6 +71,7 @@ export default function App() {
 
   return (
     <>
+      <AppVersionGate />
       {appMode === 'agent' && <Header />}
       {appMode === 'agent' ? (
         <AgentWorkspace />

@@ -5,6 +5,7 @@ const MAX_EDGE = 3840
 const MAX_ASPECT_RATIO = 3
 const MIN_PIXELS = 655_360
 const MAX_PIXELS = 8_294_400
+const MAX_1K_PIXELS = 1_572_864
 
 export type SizeTier = '1K' | '2K' | '4K'
 type PresetRatio = '1:1' | '3:2' | '2:3' | '16:9' | '9:16' | '4:3' | '3:4' | '21:9'
@@ -65,6 +66,27 @@ export function normalizeImageSize(size: string) {
 
   const { width, height } = normalizeDimensions(Number(match[1]), Number(match[2]))
   return `${width}x${height}`
+}
+
+/** Codex CLI 只稳定接受约 1K 的像素预算，更大的尺寸先收回到 1K 档。 */
+export function normalizeCodexCliImageSize(size: string) {
+  const trimmed = size.trim()
+  const match = trimmed.match(SIZE_PATTERN)
+  if (!match) return trimmed
+
+  const normalized = normalizeDimensions(Number(match[1]), Number(match[2]))
+  if (normalized.width * normalized.height > MAX_1K_PIXELS) {
+    return calculateImageSize('1K', `${normalized.width}:${normalized.height}`) ?? `${normalized.width}x${normalized.height}`
+  }
+  return `${normalized.width}x${normalized.height}`
+}
+
+export function prependCodexCliSizePrompt(prompt: string, size: string) {
+  if (size === 'auto') return prompt
+  const trimmed = prompt.trimStart()
+  const hint = `Generate at ${size} resolution.`
+  if (trimmed.startsWith(hint)) return trimmed
+  return `${hint} ${trimmed}`
 }
 
 export function parseRatio(ratio: string) {
@@ -155,7 +177,7 @@ export function formatImageRatio(width: number, height: number) {
  * 在该预算内、满足所有 OpenAI 约束的前提下，选取总像素最大的候选尺寸。
  */
 const TIER_PIXEL_BUDGET: Record<SizeTier, number> = {
-  '1K': 1_572_864,   // 1024 × 1536
+  '1K': MAX_1K_PIXELS,
   '2K': 4_194_304,   // 2048 × 2048
   '4K': MAX_PIXELS,  // 8_294_400
 }

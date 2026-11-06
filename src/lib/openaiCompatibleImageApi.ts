@@ -2,6 +2,7 @@ import { DEFAULT_STREAM_PARTIAL_IMAGES, type ApiProfile, type CustomProviderDefi
 import { dataUrlToBlob, imageDataUrlToPngBlob, maskDataUrlToPngBlob } from './canvasImage'
 import { buildApiUrl, createApiProxyHeaders, readClientDevProxyConfig, shouldUseApiProxy } from './devProxy'
 import {
+  applyGptImage26Params,
   assertImageInputPayloadSize,
   assertMaskEditFileSize,
   type CallApiOptions,
@@ -17,6 +18,8 @@ import {
   normalizeBase64Image,
   pickActualParams,
 } from './imageApiShared'
+import { getImageGenerationModel, isVectorOrAnimatedFormat } from './imageModels'
+import { prependCodexCliSizePrompt } from './size'
 
 import { getImageRequestTimeoutSeconds } from './imageRequestTimeout'
 import { runImageRequest } from './imageRequest'
@@ -27,6 +30,14 @@ const PROMPT_REWRITE_GUARD_PREFIX = 'Use the following text as the complete prom
 
 function getStreamPartialImages(profile: ApiProfile): number {
   return profile.streamPartialImages ?? DEFAULT_STREAM_PARTIAL_IMAGES
+}
+
+function appendScalarGptImage26Params(formData: FormData, params: TaskParams, profile: ApiProfile) {
+  const gptImage26Params: Record<string, unknown> = {}
+  applyGptImage26Params(gptImage26Params, params, profile)
+  for (const [key, value] of Object.entries(gptImage26Params)) {
+    if (typeof value !== 'object') formData.append(key, String(value))
+  }
 }
 
 function appendQuery(path: string, query?: Record<string, string>): string {
@@ -227,11 +238,13 @@ function createResponsesImageTool(
   const tool: Record<string, unknown> = {
     type: 'image_generation',
     action: isEdit ? 'edit' : 'generate',
-    size: params.size,
     output_format: params.output_format,
     moderation: params.moderation,
     ...(params.background !== undefined ? { background: params.background } : {}),
   }
+  const imageModel = getImageGenerationModel(profile)
+  if (imageModel) tool.model = imageModel
+  if (!profile.codexCli) tool.size = params.size
 
   if (profile.streamImages) {
     tool.partial_images = getStreamPartialImages(profile)
@@ -240,6 +253,7 @@ function createResponsesImageTool(
   if (!profile.codexCli) {
     tool.quality = params.quality
   }
+  applyGptImage26Params(tool, params, profile)
 
   if (params.output_format !== 'png' && params.output_compression != null) {
     tool.output_compression = params.output_compression
@@ -545,19 +559,24 @@ async function parseResponsesApiStreamResponse(
 
 export async function callOpenAICompatibleImageApi(opts: CallApiOptions, profile: ApiProfile, customProvider?: CustomProviderDefinition | null): Promise<CallApiResult> {
   if (customProvider) {
+    const n = opts.params.n > 0 ? opts.params.n : 1
+    if (opts.params.output_format === 'svg' && n > 1 && !customProvider.submit.taskIdPath) {
+      return callImagesApiConcurrent(opts, profile, n, customProvider)
+    }
     return callCustomHttpImageApi(opts, profile, customProvider)
   }
 
   const params = normalizeImageBackgroundParams(opts.params)
   const requestOpts = params === opts.params ? opts : { ...opts, params }
-  return profile.apiMode === 'responses'
-    ? callResponsesImageApi(requestOpts, profile)
-    : callImagesApi(requestOpts, profile)
+  const requestProfile = isVectorOrAnimatedFormat(requestOpts.params.output_format) ? { ...profile, streamImages: false } : profile
+  return requestProfile.apiMode === 'responses'
+    ? callResponsesImageApi(requestOpts, requestProfile)
+    : callImagesApi(requestOpts, requestProfile)
 }
 
 async function callImagesApi(opts: CallApiOptions, profile: ApiProfile, customProvider?: CustomProviderDefinition | null): Promise<CallApiResult> {
   const n = opts.params.n > 0 ? opts.params.n : 1
-  if ((profile.codexCli || (profile.streamImages && n > 1)) && n > 1) {
+  if ((profile.codexCli || (profile.streamImages && n > 1) || opts.params.output_format === 'svg') && n > 1) {
     return callImagesApiConcurrent(opts, profile, n, customProvider)
   }
 
@@ -610,9 +629,10 @@ async function callImagesApiConcurrent(opts: CallApiOptions, profile: ApiProfile
 
 async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile, customProvider?: CustomProviderDefinition | null): Promise<CallApiResult> {
   const { prompt: originalPrompt, params, inputImageDataUrls } = opts
+  const sizedPrompt = profile.codexCli ? prependCodexCliSizePrompt(originalPrompt, params.size) : originalPrompt
   const prompt = profile.codexCli
-    ? `${PROMPT_REWRITE_GUARD_PREFIX}\n${originalPrompt}`
-    : originalPrompt
+    ? `${PROMPT_REWRITE_GUARD_PREFIX}\n${sizedPrompt}`
+    : sizedPrompt
   const isEdit = inputImageDataUrls.length > 0
   const mime = MIME_MAP[params.output_format] || 'image/png'
   const proxyConfig = readClientDevProxyConfig()
@@ -636,6 +656,7 @@ async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile, cu
       if (!profile.codexCli) {
         formData.append('quality', params.quality)
       }
+      appendScalarGptImage26Params(formData, params, profile)
 
       if (params.output_format !== 'png' && params.output_compression != null) {
         formData.append('output_compression', String(params.output_compression))
@@ -699,6 +720,7 @@ async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile, cu
       if (!profile.codexCli) {
         body.quality = params.quality
       }
+      applyGptImage26Params(body, params, profile)
 
       if (params.output_format !== 'png' && params.output_compression != null) {
         body.output_compression = params.output_compression
@@ -793,12 +815,26 @@ function resolveTemplateValue(value: unknown, context: Record<string, unknown>):
 }
 
 function createCustomProviderContext(opts: CallApiOptions, profile: ApiProfile) {
+  const sizedPrompt = profile.codexCli ? prependCodexCliSizePrompt(opts.prompt, opts.params.size) : opts.prompt
+  const prompt = profile.codexCli ? `${PROMPT_REWRITE_GUARD_PREFIX}\n${sizedPrompt}` : sizedPrompt
+  const gptImage26Params: Record<string, unknown> = {}
+  applyGptImage26Params(gptImage26Params, opts.params, profile)
   return {
     profile,
-    prompt: opts.prompt,
-    params: opts.params,
+    prompt,
+    params: {
+      ...opts.params,
+      complexity: undefined,
+      frame_count: undefined,
+      frame_duration_ms: undefined,
+      ...gptImage26Params,
+      ...(profile.codexCli ? { size: undefined, quality: undefined } : {}),
+    },
     inputImages: {
       dataUrls: opts.inputImageDataUrls.length ? opts.inputImageDataUrls : undefined,
+      base64: opts.inputImageDataUrls.length
+        ? opts.inputImageDataUrls.map((url) => url.replace(/^data:[^;]+;base64,/, ''))
+        : undefined,
       count: opts.inputImageDataUrls.length,
     },
     mask: {

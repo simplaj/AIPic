@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useId } from 'react'
+import { Select as KumoSelect } from '@cloudflare/kumo/components/select'
+import { Button as KumoButton } from '@cloudflare/kumo/components/button'
 import { createPortal } from 'react-dom'
 import { DEFAULT_DROPDOWN_MAX_HEIGHT } from '../lib/dropdown'
 import { ChevronDownIcon, EditIcon, PlusIcon, TrashIcon, DragHandleIcon } from './icons'
@@ -25,7 +27,21 @@ interface SelectProps {
   tone?: 'default' | 'dark'
 }
 
-export default function Select({ value, onChange, onReorder, options, disabled, className, tone = 'default' }: SelectProps) {
+export default function Select(props: SelectProps) {
+  if (props.onReorder || props.options.some((option) => option.variant || option.actions?.length || option.draggable)) {
+    return <ReorderableSelect {...props} />
+  }
+  return <KumoSelect
+    value={props.value}
+    onValueChange={(value) => value !== null && props.onChange(value)}
+    items={props.options.map(({ value, label }) => ({ value, label }))}
+    disabled={props.disabled}
+    aria-label={props.options.find((option) => option.value === props.value)?.label ?? '选择选项'}
+    className={`studio-select ${props.className ?? ''}`}
+  />
+}
+
+function ReorderableSelect({ value, onChange, onReorder, options, disabled, className, tone = 'default' }: SelectProps) {
   const menuId = useId()
   const [isOpen, setIsOpen] = useState(false)
   const [menuMaxHeight, setMenuMaxHeight] = useState(DEFAULT_DROPDOWN_MAX_HEIGHT)
@@ -182,7 +198,7 @@ export default function Select({ value, onChange, onReorder, options, disabled, 
         }
       }}
     >
-      <button
+      <KumoButton
         ref={triggerRef}
         type="button"
         disabled={disabled}
@@ -194,7 +210,7 @@ export default function Select({ value, onChange, onReorder, options, disabled, 
       >
         <span className="truncate">{selectedOption?.label ?? value}</span>
         <ChevronDownIcon className={`h-4 w-4 shrink-0 text-[var(--apple-secondary)] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      </KumoButton>
 
       {isOpen && (
         <div
@@ -407,7 +423,7 @@ export default function Select({ value, onChange, onReorder, options, disabled, 
               {option.actions?.length ? (
                 <span className="ml-auto flex shrink-0 items-center gap-1">
                   {option.actions.map((action) => (
-                    <button
+                    <KumoButton
                       key={action.label}
                       type="button"
                       title={action.label}
@@ -430,7 +446,7 @@ export default function Select({ value, onChange, onReorder, options, disabled, 
                       ) : (
                         action.label
                       )}
-                    </button>
+                    </KumoButton>
                   ))}
                 </span>
               ) : null}

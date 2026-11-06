@@ -1,4 +1,4 @@
-import type { ApiMode, AppSettings } from '../types'
+import { REASONING_EFFORT_VALUES, type ApiMode, type AppSettings, type ReasoningEffort } from '../types'
 import { isApiProxyAvailable, normalizeBaseUrl, readClientDevProxyConfig } from './devProxy'
 import {
   createDefaultOpenAIProfile,
@@ -10,7 +10,7 @@ import {
   normalizeStreamPartialImages,
 } from './apiProfiles'
 
-const URL_SETTING_KEYS = ['settings', 'apiUrl', 'apiKey', 'codexCli', 'apiMode', 'model', 'streamImages', 'streamPartialImages']
+const URL_SETTING_KEYS = ['settings', 'apiUrl', 'apiKey', 'codexCli', 'apiMode', 'model', 'imageGenerationModel', 'reasoningEffort', 'svgModel', 'streamImages', 'streamPartialImages']
 
 function getProfileDedupKey(profile: Pick<AppSettings['profiles'][number], 'provider' | 'baseUrl' | 'apiKey' | 'model' | 'apiMode' | 'streamImages' | 'streamPartialImages'>) {
   return JSON.stringify([
@@ -89,6 +89,9 @@ export function buildSettingsFromUrlParams(currentSettings: Partial<AppSettings>
   const codexCliParam = searchParams.get('codexCli')
   const apiModeParam = searchParams.get('apiMode')
   const modelParam = searchParams.get('model')
+  const imageGenerationModelParam = searchParams.get('imageGenerationModel')
+  const reasoningEffortParam = searchParams.get('reasoningEffort')
+  const svgModelParam = searchParams.get('svgModel')
   const streamImagesParam = searchParams.get('streamImages')
   const streamPartialImagesParam = searchParams.get('streamPartialImages')
   const apiMode: ApiMode | undefined = apiModeParam === 'images' || apiModeParam === 'responses' ? apiModeParam : undefined
@@ -111,6 +114,11 @@ export function buildSettingsFromUrlParams(currentSettings: Partial<AppSettings>
     if (apiUrlParam !== null) profile.baseUrl = normalizeBaseUrl(apiUrlParam.trim())
     if (apiKeyParam !== null) profile.apiKey = apiKeyParam.trim()
     if (modelParam !== null && modelParam.trim()) profile.model = modelParam.trim()
+    if (imageGenerationModelParam !== null) profile.imageGenerationModel = imageGenerationModelParam.trim()
+    if (svgModelParam !== null && svgModelParam.trim()) profile.svgModel = svgModelParam.trim()
+    if (reasoningEffortParam !== null && (REASONING_EFFORT_VALUES as readonly string[]).includes(reasoningEffortParam)) {
+      profile.reasoningEffort = reasoningEffortParam as ReasoningEffort
+    }
     if (codexCliParam !== null) profile.codexCli = codexCliParam.trim().toLowerCase() === 'true'
     if (streamImagesParam !== null) profile.streamImages = streamImagesParam.trim().toLowerCase() === 'true'
     if (streamPartialImagesParam !== null) profile.streamPartialImages = normalizeStreamPartialImages(streamPartialImagesParam)

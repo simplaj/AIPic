@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useStore, submitTask, submitAgentMessage, stopAgentResponse, addImageFromFile, createInputImageFromFile, deleteImageIfUnreferenced, updateTaskInStore, removeMultipleTasks, getCachedImage, ensureImageCached, getActiveAgentRounds } from '../store'
 import { DEFAULT_PARAMS } from '../types'
 import { getActiveApiProfile, normalizeSettings } from '../lib/apiProfiles'
+import { supportsExtendedQuality, supportsGptImage26Params } from '../lib/imageModels'
 import { DEFAULT_FAL_IMAGE_SIZE, getChangedParams, getOutputImageLimitForSettings, normalizeParamsForSettings } from '../lib/paramCompatibility'
 import { getAtImageQuery, getImageMentionLabel, getPromptIndexFromVisibleIndex, getPromptMentionParts, getSelectedImageMentionLabel, getSelectedTextMentionLabel, imageMentionMatches, insertImageMentionAtVisibleRange, insertTextMentionAtVisibleRange, isCursorInSelectedImageMention, stripImageMentionMarkers } from '../lib/promptImageMentions'
 import { normalizeImageSize } from '../lib/size'
@@ -638,18 +639,28 @@ export default function InputBar() {
     : normalizeImageSize(params.size) || DEFAULT_PARAMS.size
   const displaySizeLabel = displaySize === 'auto' ? '自动' : displaySize
 
-  const qualityOptions = isFalProvider
-    ? [
-        { label: '低', value: 'low' },
-        { label: '标准', value: 'medium' },
-        { label: '高', value: 'high' },
-      ]
-    : [
-        { label: '自动', value: 'auto' },
-        { label: '低', value: 'low' },
-        { label: '标准', value: 'medium' },
-        { label: '高', value: 'high' },
-      ]
+  const supports26 = supportsGptImage26Params(activeProfile)
+  const extendedQuality = supportsExtendedQuality(activeProfile)
+  const qualityOptions = [
+    ...(!isFalProvider ? [{ label: '自动', value: 'auto' }] : []),
+    { label: '低', value: 'low' },
+    { label: '标准', value: 'medium' },
+    { label: '高', value: 'high' },
+    ...(extendedQuality ? [{ label: '超清', value: 'xhigh' }, { label: '最高', value: 'max' }] : []),
+  ]
+  const complexityOptions = [
+    { label: '自动', value: 'auto' },
+    { label: '低', value: 'low' },
+    { label: '中', value: 'medium' },
+    { label: '高', value: 'high' },
+  ]
+  const formatOptions = [
+    { label: 'PNG', value: 'png' },
+    { label: 'JPEG', value: 'jpeg' },
+    { label: 'WebP', value: 'webp' },
+    ...(supports26 && appMode !== 'agent' ? [{ label: 'GIF', value: 'gif' }] : []),
+    ...(supports26 && appMode !== 'agent' && !isFalProvider && inputImages.length === 0 ? [{ label: 'SVG', value: 'svg' }] : []),
+  ]
   const atImageLimit = inputImages.length >= API_MAX_IMAGES
   const uploadImageTooltipText = atImageLimit ? `参考图数量已达上限（${API_MAX_IMAGES} 张），无法继续添加` : '上传图片'
   const compressionHint = useHintTooltip({ enabled: () => compressionDisabled })
@@ -1078,7 +1089,9 @@ export default function InputBar() {
     }
   }
 
+  const isComposingRef = useRef(false)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.nativeEvent.isComposing || isComposingRef.current || e.nativeEvent.keyCode === 229) return
     if (showAtImageMenu) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -1398,9 +1411,9 @@ export default function InputBar() {
     }
   }, [])
 
-  const selectClass = 'px-3 py-1.5 rounded-xl border border-white/[0.1] bg-white/[0.045] hover:bg-white/[0.08] text-xs text-zinc-100 transition-all duration-200 shadow-sm'
-  const disabledParamClass = 'px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.035] text-xs text-zinc-500 opacity-50 cursor-not-allowed transition-all duration-200 shadow-sm'
-  const enabledParamClass = 'bg-white/[0.045] text-zinc-100 hover:bg-white/[0.08]'
+  const selectClass = 'studio-agent-param px-3 py-1.5 text-xs transition-colors'
+  const disabledParamClass = 'studio-agent-param is-disabled px-3 py-1.5 text-xs cursor-not-allowed'
+  const enabledParamClass = 'studio-agent-param'
 
   const getTouchDropIndex = (touch: React.Touch) => {
     const target = document
@@ -1756,7 +1769,7 @@ export default function InputBar() {
         <button
           type="button"
           onClick={() => { dismissAllTooltips(); setShowSizePicker(true) }}
-          className="px-3 py-1.5 rounded-xl border border-white/[0.1] bg-white/[0.045] hover:bg-white/[0.08] focus:outline-none text-xs text-left text-zinc-100 transition-all duration-200 shadow-sm font-mono"
+          className="studio-agent-param px-3 py-1.5 text-xs text-left font-mono"
           title="选择尺寸"
         >
           {displaySizeLabel}
@@ -1794,15 +1807,24 @@ export default function InputBar() {
       <label className="flex flex-col gap-0.5">
         <span className="ml-1 text-zinc-500">格式</span>
         <Select
-          value={params.output_format}
+          value={formatOptions.some((option) => option.value === params.output_format) ? params.output_format : 'png'}
           onChange={(val) => setParams({ output_format: val as any })}
-          options={[
-            { label: 'PNG', value: 'png' },
-            { label: 'JPEG', value: 'jpeg' },
-            { label: 'WebP', value: 'webp' },
-          ]}
+          options={formatOptions}
           tone="dark"
           className={selectClass}
+        />
+      </label>
+      <label className="flex flex-col gap-0.5">
+        <span className="ml-1 text-zinc-500">复杂度</span>
+        <Select
+          value={supports26 ? params.complexity : 'auto'}
+          onChange={(val) => {
+            if (supports26) setParams({ complexity: val as any })
+          }}
+          options={complexityOptions}
+          disabled={!supports26}
+          tone="dark"
+          className={supports26 ? selectClass : disabledParamClass}
         />
       </label>
       <label
@@ -2024,7 +2046,7 @@ export default function InputBar() {
             </div>
           </div>
         )}
-        <div ref={cardRef} className="bg-zinc-950/92 text-zinc-100 backdrop-blur-2xl border border-cyan-300/[0.14] shadow-[0_22px_60px_rgb(0,0,0,0.46)] rounded-2xl p-3 sm:p-4 ring-1 ring-white/10">
+        <div ref={cardRef} className="studio-agent-input p-3 sm:p-4">
           {/* 移动端拖动条 */}
           <div
             ref={handleRef}
@@ -2092,6 +2114,8 @@ export default function InputBar() {
             <div
               ref={textareaRef}
               contentEditable
+              role="textbox"
+              aria-multiline="true"
               suppressContentEditableWarning
               onInput={(e) => {
                 isUserInputRef.current = true
@@ -2113,6 +2137,8 @@ export default function InputBar() {
                 setAtImageMenuDismissed(false)
               }}
               onKeyDown={handleKeyDown}
+                onCompositionStart={() => { isComposingRef.current = true }}
+                onCompositionEnd={() => { isComposingRef.current = false }}
               onPaste={handlePromptPaste}
               onCopy={handlePromptCopy}
               onClick={(e) => {
@@ -2134,7 +2160,7 @@ export default function InputBar() {
                 syncMentionTagSelection(el)
               }}
               aria-label={promptPlaceholder}
-              className="col-start-1 row-start-1 min-h-[42px] w-full overflow-hidden ios-rounded-scroll-fix whitespace-pre-wrap break-words rounded-xl border border-white/[0.1] bg-white/[0.045] pl-4 pr-10 py-3 text-sm leading-relaxed text-zinc-100 shadow-sm outline-none transition-[border-color,box-shadow] duration-200 focus:border-cyan-300/50 focus:ring-1 focus:ring-cyan-400/25"
+              className="studio-prompt-editor col-start-1 row-start-1 min-h-[42px] w-full overflow-hidden ios-rounded-scroll-fix whitespace-pre-wrap break-words pl-4 pr-10 py-3 text-sm leading-relaxed outline-none transition-colors"
             />
             {prompt.length === 0 && (
               <div className="prompt-placeholder col-start-1 row-start-1 pointer-events-none pl-4 pr-10 py-3 text-sm leading-relaxed text-gray-400 dark:text-gray-500">
@@ -2195,8 +2221,8 @@ export default function InputBar() {
                       activeAgentIsRunning
                         ? 'bg-red-500 text-white hover:bg-red-600'
                         : !hasSubmitApiConfig
-                        ? 'bg-gray-300 dark:bg-white/[0.06] text-white cursor-pointer'
-                        : 'bg-cyan-500 text-zinc-950 hover:bg-cyan-300 disabled:bg-gray-300 dark:disabled:bg-white/[0.04] disabled:opacity-50 disabled:cursor-not-allowed'
+                        ? 'studio-agent-send is-unavailable cursor-pointer'
+                        : 'studio-agent-send disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
                     aria-label={submitButtonAriaLabel}
                   >
@@ -2304,8 +2330,8 @@ export default function InputBar() {
                       activeAgentIsRunning
                         ? 'bg-red-500 text-white hover:bg-red-600'
                         : !hasSubmitApiConfig
-                        ? 'bg-gray-300 dark:bg-white/[0.06] text-white cursor-pointer'
-                        : 'bg-cyan-500 text-zinc-950 hover:bg-cyan-300 disabled:bg-gray-300 dark:disabled:bg-white/[0.04] disabled:opacity-50 disabled:cursor-not-allowed'
+                        ? 'studio-agent-send is-unavailable cursor-pointer'
+                        : 'studio-agent-send disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
                   >
                     {activeAgentIsRunning ? (

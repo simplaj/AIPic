@@ -3,6 +3,7 @@ import { normalizeBaseUrl } from './devProxy'
 import { imageDataUrlToPngBlob, maskDataUrlToPngBlob } from './canvasImage'
 import {
   ApiResponseError,
+  applyGptImage26Params,
   MIME_MAP,
   assertImageInputPayloadSize,
   assertMaskEditFileSize,
@@ -210,6 +211,8 @@ export async function callFlyreqImageApi(opts: CallApiOptions, profile: ApiProfi
   assertImageInputPayloadSize(inputImageDataUrls.reduce((size, image) => size + getDataUrlEncodedByteSize(image), 0) + (maskDataUrl ? getDataUrlEncodedByteSize(maskDataUrl) : 0))
   const timeoutSeconds = getImageRequestTimeoutSeconds(profile, params)
   const baseUrl = normalizeBaseUrl(profile.baseUrl)
+  const gptImage26Params: Record<string, unknown> = {}
+  applyGptImage26Params(gptImage26Params, params, profile)
   const body = {
     apiKey: profile.apiKey,
     baseUrl,
@@ -230,6 +233,10 @@ export async function callFlyreqImageApi(opts: CallApiOptions, profile: ApiProfi
     gptImageQuality: params.quality,
     gptImageOutputFormat: params.output_format,
     gptImageBackground: params.background ?? 'auto',
+    ...(typeof gptImage26Params.complexity === 'string' ? { gptImageComplexity: gptImage26Params.complexity } : {}),
+    ...(typeof gptImage26Params.frame_count === 'number' ? { gptImageFrameCount: gptImage26Params.frame_count } : {}),
+    ...(typeof gptImage26Params.frame_duration_ms === 'number' ? { gptImageFrameDurationMs: gptImage26Params.frame_duration_ms } : {}),
+    ...(gptImage26Params.svg && typeof gptImage26Params.svg === 'object' ? { gptImageSvg: gptImage26Params.svg } : {}),
     ...(params.output_compression != null ? { gptImageOutputCompression: params.output_compression } : {}),
     gptImageModeration: params.moderation,
     ...(profile.responseFormatB64Json ? { responseFormat: 'b64_json' } : {}),

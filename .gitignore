@@ -21,3 +21,7 @@ release/
 Ref/
 promo-video/
 docs/diagnostics/
+
+# Local browser QA and generated previews
+.playwright-cli/
+output/

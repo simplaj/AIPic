@@ -110,7 +110,7 @@ const DEFAULT_VIDEO_WORKSPACE_CONFIG = {
 };
 const BUILTIN_IMAGE_PRESET_IDS = new Set([
   'gemini-2.5-flash-image', 'gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview',
-  'gemini-3.1-flash-lite-image', 'gpt-image-2', 'grok-imagine-image', 'grok-imagine-image-quality',
+  'gemini-3.1-flash-lite-image', 'gpt-image-2', 'gpt-image-2.6', 'grok-imagine-image', 'grok-imagine-image-quality',
 ]);
 const DEFAULT_OUTBOUND_USER_AGENT = 'FlyReq-Image-Studio/1.5.1';
 
@@ -424,10 +424,11 @@ const XAI_IMAGINE_MAX_RETRIES = 1;
 const XAI_IMAGINE_DEFAULT_RETRY_DELAY_MS = 1000;
 // 开源版：不再硬编码模型列表，由前端通过 protocol 字段指定协议类型
 const VALID_PROTOCOLS = new Set(['google', 'openai']);
-const GPT_IMAGE_QUALITIES = new Set(['auto', 'high', 'medium', 'low']);
+const GPT_IMAGE_QUALITIES = new Set(['auto', 'high', 'medium', 'low', 'xhigh', 'max']);
 const GPT_IMAGE_STYLES = new Set(['auto', 'vivid', 'natural']);
 const GPT_IMAGE_BACKGROUNDS = new Set(['auto', 'transparent', 'opaque']);
-const GPT_IMAGE_OUTPUT_FORMATS = new Set(['png', 'jpeg', 'webp']);
+const GPT_IMAGE_OUTPUT_FORMATS = new Set(['png', 'jpeg', 'webp', 'svg', 'gif']);
+const GPT_IMAGE_COMPLEXITIES = new Set(['auto', 'low', 'medium', 'high']);
 const IMAGE_OUTPUT_SIZES = new Set(['auto', '512', '1K', '2K', '4K']);
 const IMAGE_API_FLAVORS = new Set(['xai-imagine']);
 const XAI_IMAGINE_OUTPUT_SIZES = new Set(['1K', '2K']);
@@ -584,10 +585,10 @@ function resolveDefaultImageModelConfig(env = getRuntimeEnv()) {
   const isXaiImagine = builtinPreset === 'grok-imagine-image' || builtinPreset === 'grok-imagine-image-quality';
   const configuredModelId = String(env.FLYREQ_DEFAULT_IMAGE_MODEL_MODEL_ID || '').trim().slice(0, 200);
   const usesPresetModelId = !configuredModelId;
-  const supportsAdvancedParams = protocol === 'openai' && builtinPreset === 'gpt-image-2'
+  const supportsAdvancedParams = protocol === 'openai' && (builtinPreset === 'gpt-image-2' || builtinPreset === 'gpt-image-2.6')
     ? parseBooleanEnv(env.FLYREQ_DEFAULT_IMAGE_MODEL_SUPPORTS_ADVANCED_PARAMS, DEFAULT_IMAGE_MODEL_DEPLOYMENT_CONFIG.supportsAdvancedParams)
     : false;
-  const streamImages = protocol === 'openai' && builtinPreset === 'gpt-image-2'
+  const streamImages = protocol === 'openai' && (builtinPreset === 'gpt-image-2' || builtinPreset === 'gpt-image-2.6')
     ? parseBooleanEnv(env.FLYREQ_DEFAULT_IMAGE_MODEL_STREAM_IMAGES, DEFAULT_IMAGE_MODEL_DEPLOYMENT_CONFIG.streamImages)
     : false;
   return {
@@ -904,6 +905,8 @@ function ensureImageDir() {
 }
 
 function getImageExtension(mimeType) {
+  if (mimeType?.includes('svg')) return 'svg';
+  if (mimeType?.includes('gif')) return 'gif';
   if (mimeType?.includes('jpeg') || mimeType?.includes('jpg')) return 'jpg';
   if (mimeType?.includes('webp')) return 'webp';
   return 'png';
@@ -1033,6 +1036,8 @@ function getImageMimeType(format, fallback = 'image/png') {
   if (format === 'jpeg') return 'image/jpeg';
   if (format === 'webp') return 'image/webp';
   if (format === 'png') return 'image/png';
+  if (format === 'gif') return 'image/gif';
+  if (format === 'svg') return 'image/svg+xml';
   return fallback;
 }
 
@@ -1149,6 +1154,9 @@ function buildPlatformManifest(branding) {
  * OpenAI-compatible gateways that return an image with a different layout.
  */
 async function enforceGeneratedImageLayout(imageBuffer, mimeType, request) {
+  if (String(mimeType || '').includes('svg') || String(request?.gptImageOutputFormat || '') === 'svg' || String(request?.gptImageOutputFormat || '') === 'gif') {
+    return { buffer: imageBuffer, mimeType: mimeType || 'application/octet-stream' };
+  }
   const metadata = await sharp(imageBuffer).metadata();
   const sourceWidth = metadata.width;
   const sourceHeight = metadata.height;
@@ -1376,6 +1384,7 @@ function getContentType(filePath) {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.webp': 'image/webp',
+    '.gif': 'image/gif',
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
     '.txt': 'text/plain; charset=utf-8',
@@ -1425,7 +1434,12 @@ function serveStatic(req, res, pathname) {
     const resolved = path.resolve(candidate);
     if (!resolved.startsWith(staticDirResolved) && resolved !== staticDirResolved.slice(0, -1)) continue;
     if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) continue;
-    pipeFileToResponse(res, resolved, 200, { 'Content-Type': getContentType(resolved) });
+    pipeFileToResponse(res, resolved, 200, {
+      'Content-Type': getContentType(resolved),
+      'Cache-Control': /(?:\.html$|(?:^|[/\\])(?:version\.json|sw\.js)$)/.test(resolved)
+        ? 'no-store, max-age=0'
+        : 'no-cache, must-revalidate',
+    });
     return true;
   }
 
@@ -1727,12 +1741,28 @@ function normalizeGptImageAdvancedParams(params = {}) {
   const style = validateEnumValue(params.gptImageStyle, GPT_IMAGE_STYLES, 'style');
   const background = validateEnumValue(params.gptImageBackground, GPT_IMAGE_BACKGROUNDS, 'background');
   const outputFormat = validateEnumValue(params.gptImageOutputFormat, GPT_IMAGE_OUTPUT_FORMATS, 'output_format');
+  const complexity = validateEnumValue(params.gptImageComplexity, GPT_IMAGE_COMPLEXITIES, 'complexity');
+  const frameCount = params.gptImageFrameCount;
+  const frameDuration = params.gptImageFrameDurationMs;
+  if (frameCount !== undefined && (!Number.isInteger(frameCount) || frameCount < 2 || frameCount > 16)) {
+    throw new Error('GIF 帧数无效');
+  }
+  if (frameDuration !== undefined && (!Number.isInteger(frameDuration) || frameDuration < 20 || frameDuration > 2000)) {
+    throw new Error('GIF 每帧时长无效');
+  }
+  const svg = params.gptImageSvg && typeof params.gptImageSvg === 'object' && !Array.isArray(params.gptImageSvg)
+    ? params.gptImageSvg
+    : undefined;
 
   return {
     quality: quality || DEFAULT_GPT_IMAGE_ADVANCED_PARAMS.quality,
     style: style || DEFAULT_GPT_IMAGE_ADVANCED_PARAMS.style,
     background: background || DEFAULT_GPT_IMAGE_ADVANCED_PARAMS.background,
     outputFormat: outputFormat || DEFAULT_GPT_IMAGE_ADVANCED_PARAMS.outputFormat,
+    ...(complexity && complexity !== 'auto' ? { complexity } : {}),
+    ...(frameCount !== undefined ? { frameCount } : {}),
+    ...(frameDuration !== undefined ? { frameDuration } : {}),
+    ...(svg ? { svg } : {}),
   };
 }
 
@@ -1830,6 +1860,10 @@ function buildTaskRequestForDb(body, parallelCount = body.parallelCount, promptV
     gptImageStyle: body.gptImageStyle,
     gptImageBackground: body.gptImageBackground,
     gptImageOutputFormat: body.gptImageOutputFormat,
+    gptImageComplexity: body.gptImageComplexity,
+    gptImageFrameCount: body.gptImageFrameCount,
+    gptImageFrameDurationMs: body.gptImageFrameDurationMs,
+    gptImageSvg: body.gptImageSvg,
     gptImageOutputCompression: body.gptImageOutputCompression,
     gptImageModeration: body.gptImageModeration,
     responseFormat: body.responseFormat,
@@ -2079,6 +2113,10 @@ function createGptImageRequestInit(apiKey, request, resolvedSize, options = {}) 
     ...(request.gptImageModeration ? { moderation: request.gptImageModeration } : {}),
     ...(request.responseFormat ? { response_format: request.responseFormat } : {}),
     ...(stream && request.streamPartialImages !== undefined ? { partial_images: request.streamPartialImages } : {}),
+    ...(advancedParams?.complexity ? { complexity: advancedParams.complexity } : {}),
+    ...(advancedParams?.frameCount !== undefined ? { frame_count: advancedParams.frameCount } : {}),
+    ...(advancedParams?.frameDuration !== undefined ? { frame_duration_ms: advancedParams.frameDuration } : {}),
+    ...(advancedParams?.svg ? { svg: advancedParams.svg } : {}),
   };
 
   if (request.mode === 'image-to-image') {
@@ -2104,7 +2142,10 @@ function createGptImageRequestInit(apiKey, request, resolvedSize, options = {}) 
       formData.append('aspect_ratio', aspectRatio);
     }
 
-    for (const [name, value] of Object.entries(extraParams)) formData.append(name, String(value));
+    for (const [name, value] of Object.entries(extraParams)) {
+      if (value && typeof value === 'object') continue;
+      formData.append(name, String(value));
+    }
     if (request.mask?.data) {
       const mimeType = request.mask.mimeType || 'image/png';
       const bytes = Buffer.from(request.mask.data, 'base64');
@@ -3046,7 +3087,16 @@ async function generateSingleImage(apiKey, request, taskId, index) {
         diskRefs.push(`URL:${result.httpUrl}`);
       } else {
         const buffer = Buffer.from(img, 'base64');
-        const normalized = await enforceGeneratedImageLayout(buffer, 'image/png', requestForImage);
+        const fallbackMime = requestForImage.gptImageOutputFormat === 'svg'
+          ? 'image/svg+xml'
+          : requestForImage.gptImageOutputFormat === 'gif'
+            ? 'image/gif'
+            : requestForImage.gptImageOutputFormat === 'jpeg'
+              ? 'image/jpeg'
+              : requestForImage.gptImageOutputFormat === 'webp'
+                ? 'image/webp'
+                : 'image/png';
+        const normalized = await enforceGeneratedImageLayout(buffer, fallbackMime, requestForImage);
         const result = saveImageToDisk(taskId, index, subIdx, normalized.buffer, normalized.mimeType);
         diskRefs.push(`URL:${result.httpUrl}`);
       }
@@ -3488,7 +3538,7 @@ async function handleApi(req, res, pathname) {
         // 常见情况：扩展名 png/jpg/webp，直接拼路径命中，
         // 避免对整个 IMAGE_DIR 做同步 readdir 全目录扫描（随图片数线性变慢）。
         let filePath = null;
-        for (const ext of ['png', 'jpg', 'webp']) {
+        for (const ext of ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg']) {
           const candidate = path.join(IMAGE_DIR, `${taskId}-${index}-${subIndex}.${ext}`);
           if (fs.existsSync(candidate)) { filePath = candidate; break; }
         }

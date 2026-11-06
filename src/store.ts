@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import type {
   AgentConversation,
   AgentMessage,
@@ -50,7 +50,7 @@ import { getFalErrorMessage, getFalQueuedImageResult } from './lib/falAiImageApi
 import { getCustomQueuedImageResult } from './lib/openaiCompatibleImageApi'
 import { validateMaskMatchesImage } from './lib/canvasImage'
 import { orderInputImagesForMask } from './lib/mask'
-import { getChangedParams, normalizeParamsForSettings } from './lib/paramCompatibility'
+import { completeTaskParams, getChangedParams, normalizeParamsForSettings } from './lib/paramCompatibility'
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate'
 
 // ===== Image cache =====
@@ -637,6 +637,7 @@ function mergePersistedState(persistedState: unknown, currentState: AppState): A
     agentSidebarCollapsed: Boolean(persisted.agentSidebarCollapsed),
     agentAssetTab: persisted.agentAssetTab === 'references' ? 'references' : 'outputs',
     agentAssetPanelCollapsed: Boolean(persisted.agentAssetPanelCollapsed),
+    params: completeTaskParams({ ...currentState.params, ...(persisted.params ?? {}) }),
     prompt: restoredAgentDraft ? restoredAgentDraft.prompt : galleryInputDraft?.prompt ?? '',
     inputImages: restoredAgentDraft ? restoredAgentDraft.inputImages : galleryInputDraft?.inputImages ?? [],
     maskDraft: restoredAgentDraft ? restoredAgentDraft.maskDraft : galleryInputDraft?.maskDraft ?? null,
@@ -1405,6 +1406,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'gpt-image-playground',
+      storage: createPersistStorage(),
       version: 5,
       migrate: (persistedState) => migratePersistedState(persistedState),
       partialize: getPersistedState,
@@ -1412,6 +1414,27 @@ export const useStore = create<AppState>()(
     },
   ),
 )
+
+function createPersistStorage() {
+  const memory = new Map<string, string>()
+  const memoryStorage = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value)
+    },
+    removeItem: (key: string) => {
+      memory.delete(key)
+    },
+  }
+  return createJSONStorage(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) return window.localStorage
+    } catch {
+      // Node 测试环境会暴露不可用的 localStorage。
+    }
+    return memoryStorage
+  })
+}
 
 let lastStoredAgentConversations = useStore.getState().agentConversations
 let agentConversationPersistRunning = false
@@ -1824,7 +1847,7 @@ async function recoverFalTask(taskId: string) {
 /** 初始化：从 IndexedDB 加载任务，按需恢复输入图片，并清理孤立图片 */
 export async function initStore() {
   const legacyAgentConversations = normalizeAgentConversations(useStore.getState().agentConversations)
-  const storedTasks = await getAllTasks()
+  const storedTasks = (await getAllTasks()).map((task) => ({ ...task, params: completeTaskParams(task.params) }))
   const storedAgentConversations = normalizeAgentConversations(await getAllAgentConversations())
   let loadedAgentConversations = mergeAgentConversationsForStorage(storedAgentConversations, legacyAgentConversations)
   const currentAgentConversations = normalizeAgentConversations(useStore.getState().agentConversations)
@@ -2925,7 +2948,7 @@ export async function submitAgentMessage() {
   const parentRoundId = editingRound ? editingRound.parentRoundId ?? null : activeLeafId
   const parentPath = parentRoundId ? getAgentRoundPath(conversation, parentRoundId) : []
   const normalizedParams = {
-    ...normalizeParamsForSettings(params, requestSettings, { hasInputImages: inputImageIds.length > 0 }),
+    ...normalizeParamsForSettings(params, requestSettings, { hasInputImages: inputImageIds.length > 0, agent: true }),
     n: DEFAULT_PARAMS.n,
   }
   const round: AgentRound = {
@@ -3030,7 +3053,7 @@ export async function regenerateAgentAssistantMessage(conversationId: string, ro
   const inputImageIds = uniqueIds(sourceRound.inputImageIds)
   const requestSettings = createSettingsForApiProfile(normalizedSettings, activeProfile)
   const normalizedParams = {
-    ...normalizeParamsForSettings(params, requestSettings, { hasInputImages: inputImageIds.length > 0 }),
+    ...normalizeParamsForSettings(params, requestSettings, { hasInputImages: inputImageIds.length > 0, agent: true }),
     n: DEFAULT_PARAMS.n,
   }
   const now = Date.now()

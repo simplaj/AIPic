@@ -16,6 +16,9 @@ The original backend's SQLite task queue, task-item results, in-memory API keys,
 - Preserve the actual pixels returned by the upstream. The original layout-resize behavior is available only through `AIPIC_ENFORCE_IMAGE_LAYOUT=true`.
 - Accept request bodies up to 128 MiB to accommodate base64-encoded 4K reference images and masks.
 
+- Recognize GPT Image 2.6 presets and forward supported complexity, extended quality, GIF frame controls and SVG configuration. Store GIF/SVG bytes with their matching extensions and MIME types rather than forcing raster conversion.
+- Serve `version.json`, HTML and the service worker with no-store headers so AIPic can detect new builds and refresh after active tasks finish.
+
 ## Run
 
 Requires Node.js 22.19 or newer. From the repository root:

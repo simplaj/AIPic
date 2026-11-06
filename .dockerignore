@@ -28,6 +28,9 @@
 !scripts/**
 !docs/
 !docs/**
+!templates/
+!templates/skills/
+!templates/skills/**
 
 # Never package secrets, caches, user data, or generated artifacts.
 **/.env

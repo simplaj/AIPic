@@ -1,6 +1,8 @@
 // ===== 设置 =====
 
 export type ApiMode = 'images' | 'responses'
+export const REASONING_EFFORT_VALUES = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+export type ReasoningEffort = typeof REASONING_EFFORT_VALUES[number]
 export type AppMode = 'gallery' | 'agent'
 export type ReferenceImageEditAction = 'ask' | 'replace-reference' | 'add-mask'
 export type BuiltInApiProvider = 'openai' | 'fal'
@@ -63,6 +65,12 @@ export interface ApiProfile {
   baseUrl: string
   apiKey: string
   model: string
+  /** Responses API 下实际调用图像工具的模型；留空则不发送，由接口决定 */
+  imageGenerationModel?: string
+  /** 生成 SVG 时负责编写 SVG 的文本模型，留空使用默认值 */
+  svgModel?: string
+  /** Responses API 文本模型的推理强度，留空表示不发送 */
+  reasoningEffort?: ReasoningEffort
   timeout: number
   apiMode: ApiMode
   codexCli: boolean
@@ -70,7 +78,7 @@ export interface ApiProfile {
   responseFormatB64Json?: boolean
   streamImages?: boolean
   streamPartialImages?: number
-  providerDrafts?: Partial<Record<ApiProvider, Partial<Pick<ApiProfile, 'baseUrl' | 'model' | 'apiMode' | 'codexCli' | 'apiProxy' | 'responseFormatB64Json' | 'streamImages' | 'streamPartialImages'>>>>
+  providerDrafts?: Partial<Record<ApiProvider, Partial<Pick<ApiProfile, 'baseUrl' | 'model' | 'imageGenerationModel' | 'svgModel' | 'reasoningEffort' | 'apiMode' | 'codexCli' | 'apiProxy' | 'responseFormatB64Json' | 'streamImages' | 'streamPartialImages'>>>>
 }
 
 export interface AppSettings {
@@ -101,23 +109,37 @@ export interface AppSettings {
 
 // ===== 任务参数 =====
 
+export const OUTPUT_FORMATS = ['png', 'jpeg', 'webp', 'svg', 'gif'] as const
+export const IMAGE_QUALITIES = ['auto', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+export const IMAGE_COMPLEXITIES = ['auto', 'low', 'medium', 'high'] as const
+export const GIF_FRAME_COUNT_RANGE = { min: 2, max: 16 }
+export const GIF_FRAME_DURATION_RANGE = { min: 20, max: 2000 }
+
 export interface TaskParams {
   size: string
-  quality: 'auto' | 'low' | 'medium' | 'high'
-  output_format: 'png' | 'jpeg' | 'webp'
+  quality: typeof IMAGE_QUALITIES[number]
+  /** auto 表示不发送，由模型使用默认复杂度 */
+  complexity: typeof IMAGE_COMPLEXITIES[number]
+  output_format: typeof OUTPUT_FORMATS[number]
   output_compression: number | null
   moderation: 'auto' | 'low'
   background?: 'auto' | 'transparent' | 'opaque'
   n: number
+  /** 仅 GIF 输出 */
+  frame_count: number
+  frame_duration_ms: number
 }
 
 export const DEFAULT_PARAMS: TaskParams = {
   size: 'auto',
   quality: 'auto',
+  complexity: 'auto',
   output_format: 'png',
   output_compression: null,
   moderation: 'auto',
   n: 1,
+  frame_count: 9,
+  frame_duration_ms: 200,
 }
 
 // ===== 输入图片（UI 层面） =====

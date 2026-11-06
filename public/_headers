@@ -1,0 +1,10 @@
+/
+  Cache-Control: no-store, max-age=0
+/index.html
+  Cache-Control: no-store, max-age=0
+/version.json
+  Cache-Control: no-store, max-age=0
+/sw.js
+  Cache-Control: no-store, max-age=0
+/assets/*
+  Cache-Control: no-cache, must-revalidate

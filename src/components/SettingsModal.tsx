@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { Input as KumoInput } from '@cloudflare/kumo/components/input'
+import { StudioSelect } from './studio/StudioPrimitives'
 import { normalizeBaseUrl } from '../lib/api'
+import { DEFAULT_SVG_MODEL } from '../lib/imageModels'
 import { readRuntimeEnv } from '../lib/runtimeEnv'
 import { isApiProxyAvailable, isApiProxyLocked, readClientDevProxyConfig } from '../lib/devProxy'
 import { useStore, exportData, importData, clearData, type SettingsTab } from '../store'
@@ -28,7 +31,7 @@ import {
 } from '../lib/apiProfiles'
 import { copyTextToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
 import { MAX_IMAGE_TIMEOUT_SECONDS, normalizeImageTimeoutSeconds } from '../lib/imageRequestTimeout'
-import { DEFAULT_AGENT_MAX_TOOL_ROUNDS, DEFAULT_STREAM_PARTIAL_IMAGES, type ApiProfile, type AppSettings, type CustomProviderDefinition } from '../types'
+import { DEFAULT_AGENT_MAX_TOOL_ROUNDS, DEFAULT_STREAM_PARTIAL_IMAGES, REASONING_EFFORT_VALUES, type ApiProfile, type AppSettings, type CustomProviderDefinition, type ReasoningEffort } from '../types'
 import { useCloseOnEscape } from '../hooks/useCloseOnEscape'
 import { usePreventBackgroundScroll } from '../hooks/usePreventBackgroundScroll'
 import { DEFAULT_DROPDOWN_MAX_HEIGHT, getDropdownMaxHeight } from '../lib/dropdown'
@@ -207,7 +210,7 @@ const CUSTOM_PROVIDER_LLM_PROMPT = `# 角色
 2. 如果当前环境支持读取链接，主动读取；否则要求用户粘贴文档内容。
 3. 在未获得文档前不要猜测，不要生成占位配置。
 4. 从文档中判断提交接口、图生图接口、异步任务查询接口、状态值、结果图片路径。
-5. 如果文档中明确了默认模型 ID 或 API Base URL，在 profiles 中填入；如果未明确模型 ID，model 使用 "gpt-image-2"；如果未明确 API Base URL，baseUrl 留空，由用户稍后填写。
+5. 如果文档中明确了默认模型 ID 或 API Base URL，在 profiles 中填入；如果未明确模型 ID，model 使用 "gpt-image-2.6-sunburst"；如果未明确 API Base URL，baseUrl 留空，由用户稍后填写。
 6. 输出最终 JSON；不要索要 API Key。
 
 # 输出结构
@@ -263,7 +266,7 @@ multipart files 示例：
 - name：配置名称，方便用户识别。
 - provider：对应 customProviders 中某个元素的 id。
 - baseUrl：API Base URL。如果文档明确给出，填入完整基础地址；否则留空字符串 ""。
-- model：模型 ID。如果 API 文档明确了默认模型，填入该值；否则使用 "gpt-image-2"。
+- model：模型 ID。如果 API 文档明确了默认模型，填入该值；否则使用 "gpt-image-2.6-sunburst"。
 - apiMode：固定为 "images"。
 - apiProxy：可选。仅同步自定义服务商可以设为 true，用于配合部署端 API 代理隐藏真实上游地址；包含 taskIdPath 或 poll 的异步任务配置不要开启，应用不支持异步自定义服务商走代理。
 
@@ -281,10 +284,10 @@ profiles 中不要包含 apiKey（用户导入后自行填写）。
 {"customProviders":[{"id":"custom-example-sync","name":"示例同步服务商","submit":{"path":"images/generations","method":"POST","contentType":"json","body":{"model":"$profile.model","prompt":"$prompt","size":"$params.size","quality":"$params.quality","output_format":"$params.output_format","moderation":"$params.moderation","output_compression":"$params.output_compression","n":"$params.n"},"result":{"imageUrlPaths":["data.*.url"],"b64JsonPaths":["data.*.b64_json"]}},"editSubmit":{"path":"images/edits","method":"POST","contentType":"multipart","body":{"model":"$profile.model","prompt":"$prompt","size":"$params.size","quality":"$params.quality","output_format":"$params.output_format","moderation":"$params.moderation","output_compression":"$params.output_compression","n":"$params.n"},"files":[{"field":"image[]","source":"inputImages","array":true},{"field":"mask","source":"mask"}],"result":{"imageUrlPaths":["data.*.url"],"b64JsonPaths":["data.*.b64_json"]}}}],"profiles":[{"name":"示例同步服务商","provider":"custom-example-sync","baseUrl":"https://api.example.com/v1","model":"example-model-v1","apiMode":"images"}]}
 
 ## 异步接口示例
-{"customProviders":[{"id":"custom-example-async","name":"示例异步服务商","submit":{"path":"images/generations","method":"POST","contentType":"json","query":{"async":"true"},"body":{"model":"$profile.model","prompt":"$prompt","size":"$params.size","n":"$params.n"},"taskIdPath":"data"},"editSubmit":{"path":"images/edits","method":"POST","contentType":"multipart","query":{"async":"true"},"body":{"model":"$profile.model","prompt":"$prompt","size":"$params.size","n":"$params.n"},"files":[{"field":"image[]","source":"inputImages","array":true}],"taskIdPath":"data"},"poll":{"path":"images/tasks/{task_id}","method":"GET","intervalSeconds":5,"statusPath":"data.status","successValues":["SUCCESS"],"failureValues":["FAILURE"],"errorPath":"data.fail_reason","result":{"imageUrlPaths":["data.data.data.*.url"],"b64JsonPaths":["data.data.data.*.b64_json"]}}}],"profiles":[{"name":"示例异步服务商","provider":"custom-example-async","baseUrl":"","model":"gpt-image-2","apiMode":"images"}]}
+{"customProviders":[{"id":"custom-example-async","name":"示例异步服务商","submit":{"path":"images/generations","method":"POST","contentType":"json","query":{"async":"true"},"body":{"model":"$profile.model","prompt":"$prompt","size":"$params.size","n":"$params.n"},"taskIdPath":"data"},"editSubmit":{"path":"images/edits","method":"POST","contentType":"multipart","query":{"async":"true"},"body":{"model":"$profile.model","prompt":"$prompt","size":"$params.size","n":"$params.n"},"files":[{"field":"image[]","source":"inputImages","array":true}],"taskIdPath":"data"},"poll":{"path":"images/tasks/{task_id}","method":"GET","intervalSeconds":5,"statusPath":"data.status","successValues":["SUCCESS"],"failureValues":["FAILURE"],"errorPath":"data.fail_reason","result":{"imageUrlPaths":["data.data.data.*.url"],"b64JsonPaths":["data.data.data.*.b64_json"]}}}],"profiles":[{"name":"示例异步服务商","provider":"custom-example-async","baseUrl":"","model":"gpt-image-2.6-sunburst","apiMode":"images"}]}
 
 ## 统一任务接口示例
-{"customProviders":[{"id":"custom-example-task","name":"示例任务服务商","submit":{"path":"images/generations","method":"POST","contentType":"json","body":{"model":"$profile.model","prompt":"$prompt","n":"$params.n","size":"$params.size","resolution":"2k","quality":"$params.quality","image_urls":"$inputImages.dataUrls"},"taskIdPath":"data.0.task_id"},"poll":{"path":"tasks/{task_id}","method":"GET","query":{"language":"zh"},"intervalSeconds":5,"statusPath":"data.status","successValues":["completed"],"failureValues":["failed","cancelled"],"errorPath":"data.error.message","result":{"imageUrlPaths":["data.result.images.*.url.*"],"b64JsonPaths":[]}}}],"profiles":[{"name":"示例任务服务商","provider":"custom-example-task","baseUrl":"","model":"gpt-image-2","apiMode":"images"}]}`
+{"customProviders":[{"id":"custom-example-task","name":"示例任务服务商","submit":{"path":"images/generations","method":"POST","contentType":"json","body":{"model":"$profile.model","prompt":"$prompt","n":"$params.n","size":"$params.size","resolution":"2k","quality":"$params.quality","image_urls":"$inputImages.dataUrls"},"taskIdPath":"data.0.task_id"},"poll":{"path":"tasks/{task_id}","method":"GET","query":{"language":"zh"},"intervalSeconds":5,"statusPath":"data.status","successValues":["completed"],"failureValues":["failed","cancelled"],"errorPath":"data.error.message","result":{"imageUrlPaths":["data.result.images.*.url.*"],"b64JsonPaths":[]}}}],"profiles":[{"name":"示例任务服务商","provider":"custom-example-task","baseUrl":"","model":"gpt-image-2.6-sunburst","apiMode":"images"}]}`
 
 export default function SettingsModal() {
   const showSettings = useStore((s) => s.showSettings)
@@ -319,7 +322,7 @@ export default function SettingsModal() {
   const [profileImportUrlTooltipVisible, setProfileImportUrlTooltipVisible] = useState(false)
   const [duplicateProfileTooltipVisible, setDuplicateProfileTooltipVisible] = useState(false)
   const [llmPromptTooltipVisible, setLlmPromptTooltipVisible] = useState(false)
-  const [showAdvancedApiSettings, setShowAdvancedApiSettings] = useState(true)
+  const [showAdvancedApiSettings, setShowAdvancedApiSettings] = useState(false)
   const [activeTab, setActiveTab] = useState<SettingsTab>('api')
   const [exportConfig, setExportConfig] = useState(true)
   const [exportTasks, setExportTasks] = useState(true)
@@ -1119,6 +1122,7 @@ export default function SettingsModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="apple-settings-title"
+        data-api-only={retouchOnlySettings || undefined}
         className="apple-settings retouch-settings-modal relative z-10 flex h-[calc(100dvh-2rem)] max-h-[860px] w-full max-w-4xl flex-col overflow-hidden animate-modal-in"
       >
         {/* Header */}
@@ -1394,10 +1398,10 @@ export default function SettingsModal() {
             
             {activeTab === 'api' && (
               <div className="apple-settings-group space-y-5">
-                <div className="apple-settings-notice px-4 py-4 text-[13px] leading-relaxed">
-                  <div className="font-semibold">常用接入只需要 4 项</div>
+                <div className="studio-api-intro text-[13px] leading-relaxed">
+                  <div className="font-semibold">连接你的图像模型</div>
                   <div className="mt-1 text-[var(--apple-secondary)]">
-                    选择配置，填写 API 地址和密钥，再确认模型 ID。生成参数与其他选项放在高级参数里。
+                    填写服务商的地址、密钥和模型，即可开始创作。
                   </div>
                 </div>
 
@@ -1424,26 +1428,6 @@ export default function SettingsModal() {
                 />
               </div>
 
-              <div className="apple-settings-preset p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[var(--apple-ink)]">Grok Imagine</span>
-                      <span className="rounded-md bg-[var(--apple-accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--apple-accent-text)]">预设</span>
-                    </div>
-                    <div className="mt-1 truncate font-mono text-xs text-[var(--apple-secondary)]">{DEFAULT_GROK_MODEL}</div>
-                    <div className="mt-1 text-xs text-[var(--apple-secondary)]">非流式 · Base64 图片数据</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={applyGrokPreset}
-                    className="apple-button shrink-0" data-tone="primary"
-                  >
-                    {activeProfile.provider === 'openai' && activeProfile.model === DEFAULT_GROK_MODEL ? '重新应用' : '使用预设'}
-                  </button>
-                </div>
-              </div>
-
               {/* 1. 服务商类型 */}
               <div className="block">
                 <span className="mb-1.5 block text-sm text-gray-600 dark:text-gray-300">服务商类型</span>
@@ -1457,12 +1441,13 @@ export default function SettingsModal() {
               </div>
 
               {/* 3. API URL */}
+
               {activeProviderUsesApiUrl && (
                 <label className="apple-settings-field block">
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="block text-sm font-medium text-gray-700 dark:text-gray-200">API 地址</span>
                   </div>
-                  <input
+                  <KumoInput aria-label="API 地址"
                     value={activeProfile.baseUrl}
                     onChange={(e) => updateActiveProfile({ baseUrl: e.target.value })}
                     onBlur={(e) => commitActiveProfilePatch({ baseUrl: e.target.value })}
@@ -1477,11 +1462,12 @@ export default function SettingsModal() {
               <div className="block">
                 <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">API 密钥</span>
                 <div className="relative">
-                  <input
+                  <KumoInput
                     value={activeProfile.apiKey}
                     onChange={(e) => updateActiveProfile({ apiKey: e.target.value })}
                     onBlur={(e) => commitActiveProfilePatch({ apiKey: e.target.value })}
                     type={showApiKey ? 'text' : 'password'}
+                    aria-label="API 密钥"
                     placeholder={activeProfile.provider === 'fal' ? 'FAL_KEY' : 'sk-...'}
                     className="apple-settings-input w-full text-sm font-mono pr-12"
                   />
@@ -1546,7 +1532,7 @@ export default function SettingsModal() {
                 </span>
                 <div className="relative">
                   <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium tracking-wide text-[var(--apple-secondary)]">MODEL</span>
-                  <input
+                  <KumoInput aria-label="模型 ID"
                     value={activeProfile.model}
                     onChange={(e) => updateActiveProfile({ model: e.target.value })}
                     onBlur={(e) => commitActiveProfilePatch({ model: e.target.value })}
@@ -1589,11 +1575,77 @@ export default function SettingsModal() {
 
                   {showAdvancedApiSettings && (
                     <div className="space-y-4 border-t border-gray-100 px-4 py-4 dark:border-white/[0.06]">
+              {(activeProfile.apiMode ?? DEFAULT_SETTINGS.apiMode) === 'responses' && activeProfile.provider === 'openai' && (
+                <>
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">图像模型 ID</span>
+                    <KumoInput aria-label="图像模型 ID"
+                      value={activeProfile.imageGenerationModel ?? ''}
+                      onChange={(event) => updateActiveProfile({ imageGenerationModel: event.target.value })}
+                      onBlur={(event) => commitActiveProfilePatch({ imageGenerationModel: event.target.value.trim() })}
+                      type="text"
+                      placeholder="留空使用接口默认图像模型"
+                      className="apple-settings-input w-full font-mono text-sm"
+                    />
+                    <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">Responses 的 image_generation 工具实际出图的模型，例如 {DEFAULT_IMAGES_MODEL}。</div>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">推理强度</span>
+                    <StudioSelect
+                      aria-label="推理强度"
+                      value={activeProfile.reasoningEffort ?? 'default'}
+                      onValueChange={(value) => updateActiveProfile({ reasoningEffort: value === 'default' ? undefined : value as ReasoningEffort })}
+                    >
+                      <option value="default">默认（不发送）</option>
+                      {REASONING_EFFORT_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}
+                    </StudioSelect>
+                    <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">只作用于文本模型。图像工具不支持 minimal。</div>
+                  </label>
+                </>
+              )}
+
+              {activeProfile.provider !== 'fal' && (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">SVG 编写模型</span>
+                  <KumoInput aria-label="SVG 编写模型"
+                    value={activeProfile.svgModel ?? ''}
+                    onChange={(event) => updateActiveProfile({ svgModel: event.target.value })}
+                    onBlur={(event) => commitActiveProfilePatch({ svgModel: event.target.value.trim() || undefined })}
+                    type="text"
+                    placeholder={DEFAULT_SVG_MODEL}
+                    className="apple-settings-input w-full font-mono text-sm"
+                  />
+                  <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">仅 GPT Image 2.6 输出 SVG 时使用，留空使用 {DEFAULT_SVG_MODEL}。</div>
+                </label>
+              )}
+
+
+              <div className="apple-settings-preset p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-[var(--apple-ink)]">Grok Imagine</span>
+                      <span className="rounded-md bg-[var(--apple-accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--apple-accent-text)]">预设</span>
+                    </div>
+                    <div className="mt-1 truncate font-mono text-xs text-[var(--apple-secondary)]">{DEFAULT_GROK_MODEL}</div>
+                    <div className="mt-1 text-xs text-[var(--apple-secondary)]">非流式 · Base64 图片数据</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applyGrokPreset}
+                    className="apple-button shrink-0" data-tone="primary"
+                  >
+                    {activeProfile.provider === 'openai' && activeProfile.model === DEFAULT_GROK_MODEL ? '重新应用' : '使用预设'}
+                  </button>
+                </div>
+              </div>
+
+
                       <ImageGenerationOptions settings={draft} />
 
                       <label className="block">
                         <span className="mb-1.5 block text-sm text-gray-700 dark:text-gray-200">配置名称</span>
-                        <input
+                        <KumoInput aria-label="配置名称"
                           value={activeProfile.name}
                           onChange={(e) => updateActiveProfile({ name: e.target.value })}
                           onBlur={(e) => commitActiveProfilePatch({ name: e.target.value })}

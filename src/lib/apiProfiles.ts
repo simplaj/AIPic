@@ -14,24 +14,25 @@ import type {
   ReferenceImageEditAction,
 } from '../types'
 import { DEFAULT_AGENT_MAX_TOOL_ROUNDS, DEFAULT_STREAM_PARTIAL_IMAGES } from '../types'
+import { REASONING_EFFORT_VALUES, type ReasoningEffort } from '../types'
 import { isApiProxyAvailable, shouldUseApiProxy } from './devProxy'
 import { readRuntimeEnv } from './runtimeEnv'
 import { DEFAULT_IMAGE_TIMEOUT_SECONDS, normalizeImageTimeoutSeconds } from './imageRequestTimeout'
 import { isImportableConfigUrl } from './customProviderConfigUrl'
+import { DEFAULT_FAL_MODEL, DEFAULT_IMAGES_MODEL } from './imageModels'
 
 const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1'
 const RAW_DEFAULT_API_URL = readRuntimeEnv(import.meta.env.VITE_DEFAULT_API_URL)
 const DEFAULT_OPENAI_API_PROXY = isApiProxyAvailable()
 const DOCKER_DEPLOYMENT = readRuntimeEnv(import.meta.env.VITE_DOCKER_DEPLOYMENT) === 'true'
-const DEFAULT_OPENAI_STREAM_IMAGES = true
+const DEFAULT_OPENAI_STREAM_IMAGES = false
 const DEFAULT_BASE_URL = isImportableConfigUrl(RAW_DEFAULT_API_URL)
   ? ''
   : RAW_DEFAULT_API_URL || (DOCKER_DEPLOYMENT && DEFAULT_OPENAI_API_PROXY ? '' : OPENAI_DEFAULT_BASE_URL)
-export const DEFAULT_IMAGES_MODEL = 'gpt-image-2'
+export { DEFAULT_IMAGES_MODEL, DEFAULT_FAL_MODEL } from './imageModels'
 export const DEFAULT_GROK_MODEL = 'grok-imagine-image'
-export const DEFAULT_RESPONSES_MODEL = 'gpt-5.5'
+export const DEFAULT_RESPONSES_MODEL = 'gpt-6.1-sol'
 export const DEFAULT_FAL_BASE_URL = 'https://fal.run'
-export const DEFAULT_FAL_MODEL = 'openai/gpt-image-2'
 export const DEFAULT_OPENAI_PROFILE_ID = 'default-openai'
 export const DEFAULT_API_TIMEOUT = DEFAULT_IMAGE_TIMEOUT_SECONDS
 
@@ -46,7 +47,11 @@ const DEFAULT_GENERATE_BODY = {
   prompt: '$prompt',
   size: '$params.size',
   quality: '$params.quality',
+  complexity: '$params.complexity',
   output_format: '$params.output_format',
+  frame_count: '$params.frame_count',
+  frame_duration_ms: '$params.frame_duration_ms',
+  svg: '$params.svg',
   moderation: '$params.moderation',
   output_compression: '$params.output_compression',
   n: '$params.n',
@@ -293,6 +298,7 @@ export function createDefaultOpenAIProfile(overrides: Partial<ApiProfile> = {}):
     baseUrl: DEFAULT_BASE_URL,
     apiKey: '',
     model: DEFAULT_IMAGES_MODEL,
+    imageGenerationModel: DEFAULT_IMAGES_MODEL,
     timeout: DEFAULT_API_TIMEOUT,
     apiMode: 'images',
     codexCli: false,
@@ -346,6 +352,9 @@ export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvi
       responseFormatB64Json: profile.responseFormatB64Json,
       streamImages: profile.streamImages,
       streamPartialImages: profile.streamPartialImages,
+      imageGenerationModel: profile.imageGenerationModel,
+      svgModel: profile.svgModel,
+      reasoningEffort: profile.reasoningEffort,
     },
   }
   const savedDraft = providerDrafts[provider]
@@ -362,6 +371,9 @@ export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvi
       responseFormatB64Json: savedDraft?.responseFormatB64Json,
       streamImages: false,
       streamPartialImages: savedDraft?.streamPartialImages ?? DEFAULT_STREAM_PARTIAL_IMAGES,
+      imageGenerationModel: savedDraft?.imageGenerationModel ?? profile.imageGenerationModel,
+      svgModel: savedDraft?.svgModel ?? profile.svgModel,
+      reasoningEffort: savedDraft?.reasoningEffort ?? profile.reasoningEffort,
       providerDrafts,
     }
   }
@@ -379,6 +391,9 @@ export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvi
       responseFormatB64Json: savedDraft?.responseFormatB64Json,
       streamImages: false,
       streamPartialImages: savedDraft?.streamPartialImages ?? DEFAULT_STREAM_PARTIAL_IMAGES,
+      imageGenerationModel: savedDraft?.imageGenerationModel ?? profile.imageGenerationModel,
+      svgModel: savedDraft?.svgModel ?? profile.svgModel,
+      reasoningEffort: savedDraft?.reasoningEffort ?? profile.reasoningEffort,
       providerDrafts,
     }
   }
@@ -394,8 +409,18 @@ export function switchApiProfileProvider(profile: ApiProfile, provider: ApiProvi
     responseFormatB64Json: savedDraft?.responseFormatB64Json,
     streamImages: savedDraft?.streamImages ?? (profile.provider === 'openai' ? profile.streamImages : DEFAULT_OPENAI_STREAM_IMAGES),
     streamPartialImages: savedDraft?.streamPartialImages ?? (profile.provider === 'openai' ? profile.streamPartialImages : DEFAULT_STREAM_PARTIAL_IMAGES),
+    imageGenerationModel: savedDraft?.imageGenerationModel ?? profile.imageGenerationModel,
+    svgModel: savedDraft?.svgModel ?? profile.svgModel,
+    reasoningEffort: savedDraft?.reasoningEffort ?? profile.reasoningEffort,
     providerDrafts,
   }
+}
+
+
+function normalizeReasoningEffort(value: unknown): ReasoningEffort | undefined {
+  return typeof value === 'string' && (REASONING_EFFORT_VALUES as readonly string[]).includes(value)
+    ? value as ReasoningEffort
+    : undefined
 }
 
 function normalizeProviderDraft(input: unknown, provider: ApiProvider, customProviderIds: Set<string>): ApiProfileProviderDraft {
@@ -418,6 +443,9 @@ function normalizeProviderDraft(input: unknown, provider: ApiProvider, customPro
     responseFormatB64Json: input.responseFormatB64Json === true ? true : undefined,
     streamImages: typeof input.streamImages === 'boolean' ? input.streamImages : fallback.streamImages,
     streamPartialImages: normalizeStreamPartialImages(input.streamPartialImages, fallback.streamPartialImages),
+    imageGenerationModel: typeof input.imageGenerationModel === 'string' ? input.imageGenerationModel.trim() : undefined,
+    svgModel: typeof input.svgModel === 'string' && input.svgModel.trim() ? input.svgModel.trim() : undefined,
+    reasoningEffort: normalizeReasoningEffort(input.reasoningEffort),
   }
 }
 
@@ -446,6 +474,9 @@ export function normalizeApiProfile(input: unknown, fallback?: Partial<ApiProfil
     baseUrl: provider === 'fal' ? baseUrl.trim().replace(/\/+$/, '') || DEFAULT_FAL_BASE_URL : baseUrl,
     apiKey: typeof record.apiKey === 'string' ? record.apiKey : defaults.apiKey,
     model: typeof record.model === 'string' && record.model.trim() ? record.model : defaults.model,
+    imageGenerationModel: typeof record.imageGenerationModel === 'string' ? record.imageGenerationModel.trim() : '',
+    svgModel: typeof record.svgModel === 'string' && record.svgModel.trim() ? record.svgModel.trim() : undefined,
+    reasoningEffort: normalizeReasoningEffort(record.reasoningEffort),
     timeout: normalizeImageTimeoutSeconds(record.timeout, defaults.timeout),
     apiMode,
     codexCli: Boolean(record.codexCli),

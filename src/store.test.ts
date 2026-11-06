@@ -543,7 +543,7 @@ describe('agent conversation persistence', () => {
 
     expect(migrated.settings.apiProxy).toBe(false)
     expect(migrated.settings.profiles[0].apiProxy).toBe(false)
-    expect(migrated.settings.profiles[0].streamImages).toBe(true)
+    expect(migrated.settings.profiles[0].streamImages).toBe(false)
     expect(migrated.settings.profiles[0].streamPartialImages).toBe(3)
   })
 

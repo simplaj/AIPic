@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@layer legacy {
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+}
 
 /* A system-native palette. Keep light and dark surfaces paired at the token level. */
 :root {
@@ -624,11 +626,11 @@ html:has([data-home-main]), body:has([data-home-main]), #root:has([data-home-mai
 .retouch-app-grid { display: grid; grid-template-rows: minmax(0, 1fr); height: 100%; min-height: 0; overflow: hidden; }
 .retouch-workspace { width: 100%; height: 100%; min-height: 0; padding: 0 !important; }
 .retouch-studio-shell { display: grid; grid-template-rows: minmax(0, 1fr); height: 100%; min-height: 0; padding-top: var(--safe-area-top); overflow: hidden; color: var(--apple-ink); background: var(--apple-bg); }
-.retouch-studio-body { display: grid; grid-template-areas: 'workflow preview control' 'workflow preview output'; grid-template-columns: 328px minmax(0, 1fr) 336px; grid-template-rows: minmax(0, 1fr) 156px; min-height: 0; height: 100%; overflow: hidden; }
+.retouch-studio-body { position: relative; display: grid; grid-template-areas: 'workflow preview' 'workflow output'; grid-template-columns: 312px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 112px; min-height: 0; height: 100%; overflow: hidden; }
 .retouch-workflow-panel, .retouch-control-panel, .retouch-output-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 20px 16px; overflow: hidden; background: var(--apple-surface); }
 .retouch-workflow-panel { grid-area: workflow; border-right: 1px solid var(--apple-border); }
-.retouch-control-panel { grid-area: control; border-left: 1px solid var(--apple-border); }
-.retouch-output-panel { grid-area: output; border-top: 1px solid var(--apple-border); border-left: 1px solid var(--apple-border); padding-top: 14px; padding-bottom: 14px; }
+.retouch-control-panel { position: absolute; z-index: 8; right: 16px; bottom: 128px; width: min(480px, calc(100% - 344px)); height: auto; max-height: min(560px, calc(100% - 152px)); padding: 14px; overflow: auto; border: 1px solid var(--apple-border); border-left: 1px solid var(--apple-border); border-radius: 18px; background: color-mix(in srgb, var(--apple-surface) 92%, transparent); box-shadow: var(--apple-shadow); backdrop-filter: blur(16px); }
+.retouch-output-panel { grid-area: output; border-top: 1px solid var(--apple-border); border-left: 0; padding-top: 10px; padding-bottom: 10px; background: var(--apple-surface); }
 .retouch-control-panel.is-dragging { background: var(--apple-accent-soft); }
 .retouch-control-panel.is-muted { pointer-events: none; opacity: .55; }
 .retouch-left-body { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; flex: 1 1 auto; min-height: 0; margin-top: 20px; overflow: hidden; }
@@ -662,7 +664,6 @@ html:has([data-home-main]), body:has([data-home-main]), #root:has([data-home-mai
 .retouch-category-title { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; max-width: 100%; font-size: 12px; font-weight: 600; line-height: 1.2; }
 .retouch-category-name { min-width: 0; white-space: nowrap; }
 .retouch-category-summary { display: none; }
-.retouch-new-badge, .retouch-category-new { display: inline-flex; align-items: center; min-height: 15px; border-radius: 5px; padding: 1px 4px; background: var(--apple-accent); color: white; font-size: 9px; font-weight: 700; letter-spacing: .045em; line-height: 1.3; }
 .retouch-category-count { position: absolute; right: 3px; top: 4px; display: grid; place-items: center; min-width: 16px; height: 16px; border-radius: 99px; padding: 0 3px; background: var(--apple-accent); color: white; font-size: 9px; font-weight: 650; }
 .retouch-template-list { display: flex; flex-direction: column; flex: 1 1 auto; gap: 20px; min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 2px 3px 4px 2px; overscroll-behavior: contain; }
 .retouch-group-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -765,14 +766,37 @@ html:has([data-home-main]), body:has([data-home-main]), #root:has([data-home-mai
 .retouch-thumb-more, .retouch-clear-images { flex: 0 0 auto; color: var(--apple-secondary); font-size: 12px; }
 .retouch-clear-images { min-height: 36px; border-radius: 8px; padding: 6px 8px; }
 .retouch-clear-images:hover { color: var(--apple-danger); background: var(--apple-danger-soft); }
-.retouch-prompt-field { display: grid; grid-template-rows: auto minmax(128px, 1fr); flex: 1 0 176px; gap: 8px; min-width: 0; min-height: 176px; }
+.retouch-prompt-field { display: grid; grid-template-rows: auto 88px; flex: 0 0 auto; gap: 8px; min-width: 0; min-height: 0; }
 .retouch-prompt-field > span { color: var(--apple-ink); font-size: 13px; font-weight: 550; }
-.retouch-prompt-field textarea { width: 100%; height: 100%; min-height: 128px; resize: none; border: 1px solid var(--apple-border); border-radius: 14px; background: var(--apple-surface-secondary); color: var(--apple-ink); padding: 13px 14px; font-size: 14px; line-height: 1.65; }
+.retouch-prompt-field textarea { width: 100%; height: 88px; min-height: 88px; resize: none; border: 1px solid var(--apple-border); border-radius: 12px; background: var(--apple-surface-secondary); color: var(--apple-ink); padding: 10px 12px; font-size: 14px; line-height: 1.55; }
 .retouch-prompt-field textarea:focus { border-color: var(--apple-accent); outline: 3px solid var(--apple-accent-soft); outline-offset: 0; }
 .retouch-submit-controls { display: grid; flex: 0 0 auto; gap: 12px; min-width: 0; padding-top: 4px; }
+.retouch-output-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 58px; padding: 10px 12px; border: 1px solid var(--apple-border); border-radius: 12px; background: var(--apple-surface-secondary); color: var(--apple-ink); text-align: left; }
+.retouch-output-summary:hover { background: var(--apple-hover); }
+.retouch-output-summary span { display: grid; min-width: 0; gap: 3px; }
+.retouch-output-summary strong { font-size: 13px; font-weight: 600; }
+.retouch-output-summary small { overflow: hidden; color: var(--apple-secondary); font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.retouch-output-summary svg { flex: 0 0 auto; color: var(--apple-secondary); }
+.retouch-output-drawer { position: absolute; z-index: 8; inset: 8px; display: flex; flex-direction: column; gap: 14px; overflow: auto; padding: 16px; border: 1px solid var(--apple-border); border-radius: 16px; background: var(--apple-surface); box-shadow: var(--apple-shadow); }
+.retouch-output-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.retouch-output-drawer-head strong { font-size: 16px; font-weight: 650; letter-spacing: -.02em; }
+.retouch-output-drawer-head button { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 8px; color: var(--apple-secondary); }
+.retouch-output-drawer-head button:hover { background: var(--apple-hover); color: var(--apple-ink); }
+.retouch-stream-toggle, .retouch-drawer-link { display: grid; gap: 6px; }
+.retouch-stream-toggle { grid-template-columns: 1fr auto; align-items: center; }
+.retouch-stream-toggle span, .retouch-drawer-link { color: var(--apple-ink); font-size: 13px; font-weight: 600; }
+.retouch-stream-toggle button, .retouch-drawer-link { min-height: 36px; border: 1px solid var(--apple-border); border-radius: 9px; background: var(--apple-surface-secondary); color: var(--apple-ink); padding: 0 12px; font-size: 12px; font-weight: 600; }
+.retouch-stream-toggle button.is-active { border-color: var(--apple-accent-border); background: var(--apple-accent-soft); color: var(--apple-accent-text); }
+.retouch-stream-toggle small { grid-column: 1 / -1; color: var(--apple-secondary); font-size: 12px; line-height: 1.45; }
+.retouch-drawer-link { width: 100%; text-align: left; }
 .retouch-segment-group { display: grid; grid-template-columns: 36px repeat(3,minmax(0,1fr)); align-items: stretch; gap: 3px; min-width: 0; padding: 3px; border-radius: 11px; background: var(--apple-surface-secondary); }
 .retouch-segment-group[aria-label='输出数量'], .retouch-segment-group[aria-label='生成模式'] { grid-template-columns: 36px repeat(2,minmax(0,1fr)); }
-.retouch-segment-group[aria-label='输出尺寸'], .retouch-segment-group[aria-label='修图质量'] { grid-template-columns: 36px repeat(4,minmax(0,1fr)); }
+.retouch-segment-group[aria-label='输出尺寸'], .retouch-segment-group[aria-label='渲染复杂度'] { grid-template-columns: 36px repeat(4,minmax(0,1fr)); }
+.retouch-segment-group[aria-label='修图质量'] { grid-template-columns: 36px repeat(auto-fit,minmax(42px,1fr)); }
+.retouch-segment-group[aria-label='交付格式'] { grid-template-columns: 36px repeat(5,minmax(0,1fr)); }
+.retouch-gif-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.retouch-gif-options label { display: grid; gap: 4px; color: var(--apple-secondary); font-size: 12px; }
+.retouch-gif-options input { min-width: 0; border: 1px solid var(--apple-border); border-radius: 8px; background: var(--apple-surface); color: var(--apple-ink); padding: 6px 8px; font-size: 12px; }
 .retouch-segment-group > span { align-self: center; padding-left: 5px; color: var(--apple-secondary); font-size: 12px; font-weight: 500; }
 .retouch-segment-group > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 36px; border: 1px solid transparent; border-radius: 8px; color: var(--apple-secondary); padding: 5px 3px; font-size: 12px; font-weight: 500; }
 .retouch-segment-group > button:hover { color: var(--apple-ink); background: var(--apple-hover); }
@@ -838,26 +862,16 @@ html:has([data-home-main]), body:has([data-home-main]), #root:has([data-home-mai
 body:has([data-home-main]) .toast-enter { top: calc(24px + var(--safe-area-top)); bottom: auto !important; max-width: calc(100vw - 32px); }
 
 @media (min-width: 1680px) {
-  .retouch-studio-body { grid-template-areas: 'workflow preview control output'; grid-template-columns: 368px minmax(0,1fr) 360px 232px; grid-template-rows: minmax(0,1fr); }
-  .retouch-workflow-panel, .retouch-control-panel, .retouch-output-panel { padding: 24px 20px; }
-  .retouch-output-panel { border-top: 0; }
-  .retouch-output-panel > .retouch-section-heading:nth-of-type(n+2) { display: flex; margin-top: 20px; }
-  .retouch-output-panel > .retouch-current-brief, .retouch-output-panel > .retouch-task-summary, .retouch-output-panel > .retouch-result-strip { display: grid; }
-  .retouch-history-list { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
-  .retouch-history-card { flex: 0 0 auto; }
-  .retouch-preview-panel { padding: 24px; }
+  .retouch-studio-body { grid-template-columns: 360px minmax(0,1fr); }
+  .retouch-control-panel { width: min(520px, calc(100% - 392px)); bottom: 128px; }
+  .retouch-preview-panel { padding: 20px; }
   .retouch-left-body { gap: 20px; }
 }
 
 @media (max-width: 1199px) and (min-width: 901px) {
-  .retouch-studio-body { grid-template-areas: 'workflow preview' 'control control' 'output output'; grid-template-columns: 304px minmax(0,1fr); grid-template-rows: minmax(360px,1fr) 360px 140px; height: auto; overflow: visible; }
-  .retouch-studio-shell { height: auto; min-height: 100dvh; overflow: visible; }
-  .retouch-app-main, .retouch-app-grid, .retouch-workspace { height: auto; overflow: visible; }
-  html:has([data-home-main]), body:has([data-home-main]), #root:has([data-home-main]) { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
-  .retouch-control-panel { border-left: 0; border-top: 1px solid var(--apple-border); }
-  .retouch-side-submit { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items: start; gap: 12px 20px; }
-  .retouch-prompt-field { grid-column: 1; min-height: 160px; }
-  .retouch-submit-controls { grid-column: 2; grid-row: 1/span 6; align-content: start; }
+  .retouch-studio-body { grid-template-areas: 'workflow preview' 'output output'; grid-template-columns: 280px minmax(0,1fr); grid-template-rows: minmax(420px,1fr) 120px; height: 100%; overflow: hidden; }
+  .retouch-control-panel { position: absolute; right: 12px; bottom: 132px; width: min(440px, calc(100% - 304px)); }
+  .retouch-side-submit { display: flex; flex-direction: column; }
   .retouch-output-panel { border-left: 0; }
   .retouch-preview-actions { justify-content: flex-start; }
   .retouch-preview-panel { min-height: 420px; }
@@ -868,6 +882,7 @@ body:has([data-home-main]) .toast-enter { top: calc(24px + var(--safe-area-top))
   .retouch-app-main, .retouch-app-grid, .retouch-workspace { height: auto; min-height: 0; overflow: visible; }
   .retouch-studio-shell { height: auto; min-height: 100dvh; overflow: visible; }
   .retouch-studio-body { height: auto; grid-template-areas: 'preview' 'workflow' 'control' 'output'; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(380px,56svh) auto auto auto; overflow: visible; }
+  .retouch-control-panel { position: relative; inset: auto; width: auto; max-width: none; max-height: none; border-radius: 0; box-shadow: none; backdrop-filter: none; }
   .retouch-preview-panel { padding: 16px; min-height: 380px; }
   .retouch-preview-frame { border-radius: 18px; padding: 12px; }
   .retouch-workflow-panel, .retouch-control-panel, .retouch-output-panel { min-height: auto; padding: 24px; overflow: visible; border-left: 0; border-right: 0; border-top: 1px solid var(--apple-border); }
